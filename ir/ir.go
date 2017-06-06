@@ -2,16 +2,17 @@
 package ir
 
 type Keyword struct {
-	QueryString string	`json:"query"`
-	Fields      []string	`json:"fields"`
-	Exploded    bool	`json:"exploded"`
-	Truncated   bool	`json:"truncated"`
+	Id          int          `json:"id"`
+	QueryString string       `json:"query"`
+	Fields      []string     `json:"fields"`
+	Exploded    bool         `json:"exploded"`
+	Truncated   bool         `json:"truncated"`
 }
 
 type BooleanQuery struct {
-	Operator string		`json:"operator"`
-	Keywords []Keyword	`json:"keywords"`
-	Children []BooleanQuery	`json:"children"`
+	Operator string           `json:"operator"`
+	Keywords []Keyword        `json:"keywords"`
+	Children []BooleanQuery   `json:"children"`
 }
 
 // New creates a new IRBooleanQuery
