@@ -7,7 +7,6 @@ import (
 	"github.com/hscells/transmute/ir"
 	"strings"
 	"unicode"
-	"strconv"
 	"log"
 )
 
@@ -31,14 +30,7 @@ var (
 	}
 )
 
-type QueryGroup struct {
-	Id             int
-	Type           string
-	KeywordNumbers []int
-	Children       []QueryGroup
-}
-
-// Load a search strategy from a file
+// Load a search strategy from a file.
 func Load(filename string) string {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -47,167 +39,6 @@ func Load(filename string) string {
 	return string(data)
 }
 
-func convertQueryGroupInfixToPrefix(infix []string) QueryGroup {
-	stack := []string{}
-	result := []string{}
-
-	precedence := map[string]int{
-		"and": 0,
-		"or": 1,
-		"not": 0,
-	}
-
-	for i := len(infix) - 1; i >= 0; i-- {
-		token := infix[i]
-		if token == ")" {
-			stack = append(stack, token)
-		} else if token == "(" {
-			for len(stack) > 0 {
-				var t string
-				t, stack = stack[len(stack) - 1], stack[:len(stack) - 1]
-				if t == ")" {
-					break
-				}
-				result = append(result, t)
-			}
-		} else if _, ok := precedence[token]; !ok {
-			result = append(result, token)
-		} else {
-			for len(stack) > 0 && precedence[stack[len(stack) - 1]] > precedence[token] {
-				var t string
-				t, stack = stack[len(stack) - 1], stack[:len(stack) - 1]
-				result = append(result, t)
-			}
-			stack = append(stack, token)
-		}
-
-	}
-
-	for len(stack) > 0 {
-		var t string
-		t, stack = stack[len(stack) - 1], stack[:len(stack) - 1]
-		result = append(result, t)
-	}
-
-	for i := len(result)/2-1; i >= 0; i-- {
-		opp := len(result)-1-i
-		result[i], result[opp] = result[opp], result[i]
-	}
-
-	log.Println(result)
-
-	return QueryGroup{}
-}
-
-func parseInfixGrouping(group string, startsAfter rune) QueryGroup {
-	group += "\n"
-	group = strings.ToLower(group)
-
-	stack := []string{}
-	inGroup := false
-	keyword := ""
-
-	for _, char := range group {
-		// Ignore the first few characters of the line
-		if !inGroup && char == startsAfter {
-			inGroup = true
-			continue
-		} else if !inGroup {
-			continue
-		}
-
-		if unicode.IsSpace(char) {
-			stack = append(stack, keyword)
-			keyword = ""
-			continue
-		} else {
-			keyword += string(char)
-		}
-	}
-
-	return convertQueryGroupInfixToPrefix(stack)
-}
-
-// parseGrouping parses and constructs a QueryGroup.
-func parsePrefixGrouping(group string, startsAfter rune) QueryGroup {
-	group += "\n"
-
-	var nums []string
-	var num string
-
-	var sep string
-
-	var operator string
-
-	queryGroup := QueryGroup{}
-
-	inGroup := false
-	for _, char := range group {
-		// Set the separator
-		if char == '-' {
-			sep = "-"
-		} else if char == ',' {
-			sep = ","
-		}
-
-		// Ignore the first few characters of the line
-		if !inGroup && char == startsAfter {
-			inGroup = true
-			continue
-		} else if !inGroup {
-			continue
-		}
-
-		// Extract the numbers
-		if unicode.IsNumber(char) {
-			num += string(char)
-		} else if len(num) > 0 {
-			nums = append(nums, num)
-			num = ""
-
-			if len(nums) == 2 {
-				if sep == "-" {
-					queryGroup.Type = operator
-
-					lhs, err := strconv.Atoi(nums[0])
-					if err != nil {
-						panic(err)
-					}
-
-					rhs, err := strconv.Atoi(nums[1])
-					if err != nil {
-						panic(err)
-					}
-
-					for i := lhs; i <= rhs; i++ {
-						queryGroup.KeywordNumbers = append(queryGroup.KeywordNumbers, i)
-					}
-
-				}
-				nums = []string{}
-
-			} else if len(nums) == 1 {
-				if sep == "," {
-					lhs, err := strconv.Atoi(nums[0])
-					if err != nil {
-						panic(err)
-					}
-					queryGroup.Type = operator
-					queryGroup.KeywordNumbers = append(queryGroup.KeywordNumbers, lhs)
-					nums = []string{}
-				}
-			}
-
-		}
-
-		// Extract the groups
-		if operator != "or" && operator != "and" {
-			operator += strings.ToLower(string(char))
-		}
-
-	}
-	return queryGroup
-}
 
 // buildQuery takes a list of operators and keywords and constructs a boolean query.
 func buildQuery(operators []QueryGroup, keywords []ir.Keyword, seenIds []int) ir.BooleanQuery {
@@ -219,11 +50,11 @@ func buildQuery(operators []QueryGroup, keywords []ir.Keyword, seenIds []int) ir
 
 	currentOp := operators[len(operators) - 1]
 
-	log.Println(currentOp)
+	//log.Println(currentOp)
 
 	for _, id := range seenIds {
 		if currentOp.Id == id {
-			continue
+			return booleanQuery
 		}
 	}
 
@@ -235,8 +66,8 @@ func buildQuery(operators []QueryGroup, keywords []ir.Keyword, seenIds []int) ir
 
 	for _, keywordId := range currentOp.KeywordNumbers {
 		for _, j := range operators {
-			if j.Id == keywordId && j.Type != "" {
-				booleanQuery.Children = append(booleanQuery.Children, buildQuery([]QueryGroup{j}, keywords, seenIds))
+			if j.Id == keywordId {
+				booleanQuery.Children = append(booleanQuery.Children, buildQuery(append(operators, j), keywords, seenIds))
 			}
 		}
 
@@ -266,8 +97,8 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 		keyword := ir.Keyword{Fields: make([]string, 0)}
 		keyword.Id = lc
 
-		inKeyword := false
 		isAKeyword := true
+		inKeyword := startsAfter == rune(0)
 		seenFieldSep := false
 		currentField := ""
 
@@ -366,11 +197,17 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 
 		// Ignore lines where we are looking at for instance, an operator
 		if isAKeyword {
+			if len(keyword.Fields) == 0 {
+				if IsUpper(keyword.QueryString) {
+					keyword.Fields = append(keyword.Fields, "mesh_headings")
+				} else {
+					keyword.Fields = append(keyword.Fields, "title", "text")
+				}
+			}
+
 			keywords = append(keywords, keyword)
 		}
 	}
-
-	log.Println(keywords)
 
 	return buildQuery(operators, keywords, nil)
 }
