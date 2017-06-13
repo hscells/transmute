@@ -12,11 +12,11 @@ import (
 
 var (
 	fieldMap = map[string][]string{
-		"mp": []string{"title", "text", "mesh_headings"},
-		"af": []string{"title", "text", "mesh_headings"},
-		"tw": []string{"title", "text"},
-		"nm": []string{"text", "mesh_headings"},
-		"ab": []string{"text"},
+		"mp": []string{"title", "abstract", "mesh_headings"},
+		"af": []string{"title", "abstract", "mesh_headings"},
+		"tw": []string{"title", "abstract"},
+		"nm": []string{"abstract", "mesh_headings"},
+		"ab": []string{"abstract"},
 		"ti": []string{"title"},
 		"ot": []string{"title"},
 		"sh": []string{"mesh_headings"},
@@ -27,6 +27,10 @@ var (
 		"kf": []string{"mesh_headings"},
 		"sb": []string{"mesh_headings"},
 		"pt": []string{"pubtype"},
+
+		"tiab": []string{"title", "abstract"},
+
+		"Mesh": []string{"mesh_headings"},
 	}
 )
 
@@ -64,29 +68,44 @@ func buildQuery(operators []QueryGroup, keywords []ir.Keyword, seenIds []int) ir
 	booleanQuery.Children = []ir.BooleanQuery{}
 	booleanQuery.Keywords = []ir.Keyword{}
 
-	for _, keywordId := range currentOp.KeywordNumbers {
-		for _, j := range operators {
-			if j.Id == keywordId {
-				booleanQuery.Children = append(booleanQuery.Children, buildQuery(append(operators, j), keywords, seenIds))
+	if len(currentOp.KeywordNumbers) > 0 {
+		for _, keywordId := range currentOp.KeywordNumbers {
+			for _, j := range operators {
+				if j.Id == keywordId {
+					booleanQuery.Children = append(booleanQuery.Children, buildQuery(append(operators, j), keywords, seenIds))
+				}
+			}
+
+			for _, keyword := range keywords {
+				if keyword.Id == keywordId {
+					booleanQuery.Keywords = append(booleanQuery.Keywords, keyword)
+				}
+			}
+
+			if len(currentOp.Children) > 0 {
+				booleanQuery.Children = append(booleanQuery.Children, buildQuery(currentOp.Children, keywords, nil))
 			}
 		}
-
-		for _, keyword := range keywords {
-			if keyword.Id == keywordId {
-				booleanQuery.Keywords = append(booleanQuery.Keywords, keyword)
-			}
-		}
-
-		if len(currentOp.Children) > 0 {
-			booleanQuery.Children = append(booleanQuery.Children, buildQuery(currentOp.Children, keywords, nil))
+	} else {
+		booleanQuery.Keywords = append(booleanQuery.Keywords, currentOp.Keywords...)
+		for _, queryGroup := range currentOp.Children {
+			booleanQuery.Children = append(booleanQuery.Children, buildQuery([]QueryGroup{queryGroup}, keywords, nil))
 		}
 	}
 
 	return booleanQuery
 }
 
-// Parse a search strategy from a string of characters
+// Parse a search strategy from a string of characters. There are many different ways to report a search strategy in a
+// systematic review. This function attempts to determine automatically what kind of search strategy it is reading and
+// parse accordingly based on some heuristics. What it cannot determine yet, however, are the character the query
+// "starts after" (if there are line numbers) and what character separates a keyword or grouping from the fields being
+// searched (it can be a "." or a "[").
+// The output of this function is an immediate representation specified in the ir package. To compile the immediate
+// representation to a search engine query, a backend must be implemented. The immediate representation is trivial to
+// transform into an Elasticsearch query as it closely mirrors the Elasticsearch boolean query DSL.
 func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery {
+	// TODO  this should be a map of keywordId->[]Keyword
 	keywords := []ir.Keyword{}
 	operators := []QueryGroup{}
 
@@ -102,6 +121,26 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 		seenFieldSep := false
 		currentField := ""
 
+		// If there is an open bracket and the field separator in the line there is a good chance the line isn't
+		// a grouping of line numbers (handled below) but is instead actually an inner group of keywords.
+		foundBracket := false
+		foundFieldSeparator := false
+		for _, char := range line {
+			if char == '(' {
+				foundBracket = true
+			} else if char == fieldSeparator {
+				foundFieldSeparator = true
+			}
+		}
+
+		if foundBracket && foundFieldSeparator {
+			queryGroup := parseInfixKeywords(line, startsAfter, fieldSeparator)
+			queryGroup.Id = lc
+			operators = append(operators, queryGroup)
+			break
+		}
+
+		// Otherwise we can parse a more typical search strategy keyword
 		for i, char := range line {
 			if inKeyword {
 				// Now that we are definitely looking at a keyword:
@@ -148,6 +187,7 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 						queryGroup.Id = lc
 						operators = append(operators, queryGroup)
 						isAKeyword = false
+						log.Println(queryGroup)
 						break
 					}
 

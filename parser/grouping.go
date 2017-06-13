@@ -1,9 +1,13 @@
 // The grouping code handles "query groups". These are expressions in search strategies that look like:
 //
 // or/3-5
+//
 // and/6,7
+//
 // 9 and 10
+//
 // 4 and (5 or 6)
+//
 // etc.
 //
 // Generally, the type of grouping (postfix or infix) can be inferred ahead of time. This means that there needs to be
@@ -17,6 +21,7 @@ import (
 	"strings"
 	"log"
 	"unicode"
+	"github.com/hscells/transmute/ir"
 )
 
 // QueryGroup is an intermediate structure, not part of the transmute intermediate representation, but instead used to
@@ -28,13 +33,15 @@ type QueryGroup struct {
 	Type           string
 	// The line numbers a keyword falls on (numbering start at 1)
 	KeywordNumbers []int
+	// Sometimes we just have plain old keywords
+	Keywords       []ir.Keyword
 	// Nested groups. for example (4 and (5 or 6)). The inner expression (5 or 6) is a child.
 	Children       []QueryGroup
 }
 
 // transformPrefixGroupToQueryGroup transforms a prefix syntax tree into a query group. The new QueryGroup is built by
 // recursively navigating the syntax tree.
-func transformPrefixGroupToQueryGroup(prefix []string, queryGroup QueryGroup) ([]string, QueryGroup) {
+func transformPrefixGroupToQueryGroup(prefix []string, queryGroup QueryGroup, fieldSeparator rune) ([]string, QueryGroup) {
 	if len(prefix) == 0 {
 		return prefix, queryGroup
 	}
@@ -44,18 +51,78 @@ func transformPrefixGroupToQueryGroup(prefix []string, queryGroup QueryGroup) ([
 		queryGroup.Type = token
 	} else if token == "(" {
 		var subGroup QueryGroup
-		prefix, subGroup = transformPrefixGroupToQueryGroup(prefix[1:], QueryGroup{})
+		prefix, subGroup = transformPrefixGroupToQueryGroup(prefix[1:], QueryGroup{}, fieldSeparator)
 		queryGroup.Children = append(queryGroup.Children, subGroup)
 	} else if token == ")" {
 		return prefix, queryGroup
 	} else {
-		keywordNum, err := strconv.Atoi(token)
-		if err != nil {
-			log.Panicln(err)
+		if len(token) > 0 {
+			// Are we looking at a number or a keyword?
+			isANumber := true
+			for _, c := range token {
+				if !unicode.IsNumber(c) {
+					isANumber = false;
+				}
+			}
+
+			// Just add the number to the list of keyword numbers
+			if isANumber {
+				keywordNum, err := strconv.Atoi(token)
+				if err != nil {
+					log.Panicln(err)
+				}
+				queryGroup.KeywordNumbers = append(queryGroup.KeywordNumbers, keywordNum)
+			} else {
+				// Otherwise we have a much more difficult string to parse
+				keyword := ir.Keyword{}
+				keyword.Fields = []string{}
+
+				queryString := ""
+				field := ""
+				foundFieldSeparator := false
+				for i, char := range token {
+					// Look for the field separator
+					if char == fieldSeparator {
+						foundFieldSeparator = true
+						continue
+					} else if char == '*' {
+						// Check if the query string is truncated
+						keyword.Truncated = true
+						continue
+					}
+
+					// Check if the mesh heading has been exploded
+					if queryString == "exp " {
+						keyword.Exploded = true
+						queryString = ""
+						continue
+					}
+
+					// We are in the query string state
+					if !foundFieldSeparator {
+						queryString += string(char)
+					} else {
+						// Now we are in the fields state
+						if unicode.IsPunct(char) && len(field) > 0 {
+							keyword.Fields = append(keyword.Fields, fieldMap[field]...)
+							field = ""
+						} else {
+							field += string(char)
+						}
+					}
+
+					if i == len(token) - 1 {
+						if char == '/' {
+							keyword.Fields = append(keyword.Fields, "mesh_headings")
+						}
+					}
+				}
+				keyword.QueryString = queryString
+				queryGroup.Keywords = append(queryGroup.Keywords, keyword)
+			}
 		}
-		queryGroup.KeywordNumbers = append(queryGroup.KeywordNumbers, keywordNum)
 	}
-	return transformPrefixGroupToQueryGroup(prefix[1:], queryGroup)
+	return transformPrefixGroupToQueryGroup(prefix[1:], queryGroup, fieldSeparator)
 }
 
 // convertInfixToPrefix translates an infix grouping expression into a prefix expression. The way this is done is the
@@ -67,9 +134,9 @@ func convertInfixToPrefix(infix []string) []string {
 	result := []string{}
 
 	precedence := map[string]int{
-		"and": 0,
-		"or": 1,
-		"not": 0,
+		"and": 1,
+		"or": 0,
+		"not": 1,
 	}
 
 	// The algorithm is slightly modified to also store the brackets in the result
@@ -117,6 +184,60 @@ func convertInfixToPrefix(infix []string) []string {
 	return result
 }
 
+func parseInfixKeywords(line string, startsAfter, fieldSeparator rune) QueryGroup {
+	line += "\n"
+
+	stack := []string{}
+	inGroup := startsAfter == rune(0)
+
+	keyword := ""
+	currentToken := ""
+	previousToken := ""
+
+	for _, char := range line {
+		// Ignore the first few characters of the line
+		if !inGroup && char == startsAfter {
+			inGroup = true
+			continue
+		} else if !inGroup {
+			continue
+		}
+
+		if unicode.IsSpace(char) {
+			t := strings.ToLower(currentToken)
+			if t == "or" || t == "and" || t == "not" {
+				keyword = previousToken
+				stack = append(stack, strings.TrimSpace(keyword))
+				stack = append(stack, strings.TrimSpace(t))
+				previousToken = ""
+				keyword = ""
+			} else {
+				previousToken += " " + currentToken
+			}
+			currentToken = ""
+			continue
+		} else if char == '(' {
+			stack = append(stack, "(")
+			currentToken = ""
+			continue
+		} else if char == ')' {
+			if len(keyword) > 0 {
+				stack = append(stack, strings.TrimSpace(keyword + " " + currentToken))
+				keyword = ""
+				currentToken = ""
+			}
+			stack = append(stack, ")")
+			continue
+		} else if !unicode.IsSpace(char) {
+			currentToken += string(char)
+		}
+
+	}
+	prefix := convertInfixToPrefix(stack)
+	_, queryGroup := transformPrefixGroupToQueryGroup(prefix, QueryGroup{}, fieldSeparator)
+	return queryGroup
+}
+
 // parseInfixGrouping translates an infix grouping into a prefix grouping, and then transforms it into a QueryGroup in
 // two separate steps.
 func parseInfixGrouping(group string, startsAfter rune) QueryGroup {
@@ -157,7 +278,7 @@ func parseInfixGrouping(group string, startsAfter rune) QueryGroup {
 	}
 
 	prefix := convertInfixToPrefix(stack)
-	_, queryGroup := transformPrefixGroupToQueryGroup(prefix, QueryGroup{})
+	_, queryGroup := transformPrefixGroupToQueryGroup(prefix, QueryGroup{}, 0)
 	return queryGroup
 }
 
