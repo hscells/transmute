@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"github.com/hscells/transmute/parser"
 	"os"
+	"io/ioutil"
 )
 
 type args struct {
-	Input          string `arg:"required,help:File containing a search strategy."`
+	Input          string `arg:"help:File containing a search strategy."`
 	Output         string `arg:"help:File to output the transformed query to."`
 	StartsAfter    string `arg:"help:Character the keywords in a search strategy start after."`
 	FieldSeparator string `arg:"help:Character the separates a keyword from the field used to search on."`
@@ -25,6 +26,8 @@ func (args) Description() string {
 
 func main() {
 	var args args
+	var query string
+	inputFile := os.Stdin
 	outputFile := os.Stdout
 	startsAfter := rune(0)
 	fieldSeparator := rune('.')
@@ -35,6 +38,18 @@ func main() {
 
 	// Parse the args into the struct
 	arg.MustParse(&args)
+
+	// Grab the input file (if defaults to stdin).
+	if args.Input != "" {
+		// Load the query
+		query = parser.Load(args.Input)
+	} else {
+		data, err := ioutil.ReadAll(inputFile)
+		if err != nil {
+			log.Panicln(err)
+		}
+		query = string(data)
+	}
 
 	// Grab the output file (it defaults to stdout).
 	if args.Output != "" {
@@ -49,9 +64,6 @@ func main() {
 		}
 	}
 
-	// Load the query
-	data := parser.Load(args.Input)
-
 	// Override the default values
 	if len(args.StartsAfter) > 0 {
 		startsAfter = rune(args.StartsAfter[0])
@@ -61,10 +73,10 @@ func main() {
 	}
 
 	// Parse the query into our own format
-	query := parser.Parse(data, startsAfter, fieldSeparator)
+	ir_query := parser.Parse(query, startsAfter, fieldSeparator)
 
 	// format the output
-	d, err := json.MarshalIndent(query, "", "    ")
+	d, err := json.MarshalIndent(ir_query, "", "    ")
 	if err != nil {
 		panic(err)
 	}

@@ -26,11 +26,14 @@ var (
 		"rn": []string{"mesh_headings"},
 		"kf": []string{"mesh_headings"},
 		"sb": []string{"mesh_headings"},
+		"mh": []string{"mesh_headings"},
 		"pt": []string{"pubtype"},
 
 		"tiab": []string{"title", "abstract"},
 
 		"Mesh": []string{"mesh_headings"},
+		"Title": []string{"title"},
+		"Title/Abstract": []string{"title", "abstract"},
 	}
 )
 
@@ -125,10 +128,16 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 		// a grouping of line numbers (handled below) but is instead actually an inner group of keywords.
 		foundBracket := false
 		foundFieldSeparator := false
-		for _, char := range line {
+		for i, char := range line {
 			if char == '(' {
 				foundBracket = true
-			} else if char == fieldSeparator {
+			}
+
+			if char == fieldSeparator {
+				foundFieldSeparator = true
+			}
+
+			if foundBracket && i == 0 {
 				foundFieldSeparator = true
 			}
 		}

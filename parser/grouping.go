@@ -103,7 +103,7 @@ func transformPrefixGroupToQueryGroup(prefix []string, queryGroup QueryGroup, fi
 						queryString += string(char)
 					} else {
 						// Now we are in the fields state
-						if unicode.IsPunct(char) && len(field) > 0 {
+						if (unicode.IsPunct(char) || unicode.IsSpace(char)) && len(field) > 0 {
 							keyword.Fields = append(keyword.Fields, fieldMap[field]...)
 							field = ""
 						} else {
@@ -184,6 +184,22 @@ func convertInfixToPrefix(infix []string) []string {
 	return result
 }
 
+func addFieldsToKeywords(queryGroup QueryGroup, fields []string) QueryGroup {
+	log.Println(fields)
+	for i, keyword := range queryGroup.Keywords {
+		queryGroup.Keywords[i].Fields = append(keyword.Fields, fields...)
+	}
+
+	log.Println(queryGroup.Keywords)
+	log.Println(queryGroup.Keywords[0].Fields)
+
+	for _, child := range queryGroup.Children {
+		child = addFieldsToKeywords(child, fields)
+	}
+
+	return queryGroup
+}
+
 func parseInfixKeywords(line string, startsAfter, fieldSeparator rune) QueryGroup {
 	line += "\n"
 
@@ -193,6 +209,10 @@ func parseInfixKeywords(line string, startsAfter, fieldSeparator rune) QueryGrou
 	keyword := ""
 	currentToken := ""
 	previousToken := ""
+
+	endTokens := ""
+
+	depth := 0
 
 	for _, char := range line {
 		// Ignore the first few characters of the line
@@ -217,11 +237,13 @@ func parseInfixKeywords(line string, startsAfter, fieldSeparator rune) QueryGrou
 			currentToken = ""
 			continue
 		} else if char == '(' {
+			depth++
 			stack = append(stack, "(")
 			currentToken = ""
 			continue
 		} else if char == ')' {
-			if len(keyword) > 0 {
+			depth--
+			if len(keyword) > 0 || len(currentToken) > 0 {
 				stack = append(stack, strings.TrimSpace(keyword + " " + currentToken))
 				keyword = ""
 				currentToken = ""
@@ -232,9 +254,38 @@ func parseInfixKeywords(line string, startsAfter, fieldSeparator rune) QueryGrou
 			currentToken += string(char)
 		}
 
+
+		if depth == 0 {
+			endTokens += string(char)
+		}
+	}
+
+	stack = append(stack, endTokens)
+	// The end of the expression contains fields, so we need to populate the fields of all the keywords.
+	fields := []string{}
+	if stack[len(stack) - 1] != ")" {
+		field := ""
+		for _, char := range(stack[len(stack) - 1]) {
+			if char == fieldSeparator {
+				continue
+			} else if (unicode.IsPunct(char) || unicode.IsSpace(char)) && len(field) > 0 {
+				fields = append(fields, fieldMap[field]...)
+				field = ""
+			} else {
+				field += string(char)
+			}
+		}
+		fields = append(fields, fieldMap[field]...)
+
+		stack = stack[:len(stack) - 2]
 	}
 	prefix := convertInfixToPrefix(stack)
 	_, queryGroup := transformPrefixGroupToQueryGroup(prefix, QueryGroup{}, fieldSeparator)
+
+	if len(fields) > 0 {
+		queryGroup = addFieldsToKeywords(queryGroup, fields)
+	}
+
 	return queryGroup
 }
 
