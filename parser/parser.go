@@ -7,6 +7,7 @@ import (
 	"github.com/hscells/transmute/ir"
 	"strings"
 	"unicode"
+	"log"
 )
 
 // Load a search strategy from a file.
@@ -169,6 +170,7 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 					if IsOperator(keywordLower) {
 						queryGroup := parsePrefixGrouping(line, startsAfter)
 						queryGroup.Id = lc
+						queryGroup.Type = keywordLower
 						operators = append(operators, queryGroup)
 						isAKeyword = false
 						break
@@ -217,5 +219,6 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 		}
 	}
 
+	log.Println(operators)
 	return buildQuery(operators, keywords, nil)
 }
