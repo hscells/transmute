@@ -30,6 +30,8 @@ human input as possible:
 Both are valid Pubmed and Medline search strategies reported in real systematic reviews; transmute can currently parse
 both into the same representation with close to no human input.
 
+## Installing
+
 As well as being a well-documented library, transmute can also be used on the command line. Since it is still in
 development, it can be built from source with go tools:
 
@@ -39,3 +41,40 @@ cd $GOPATH/src/github.com/hscells/transmute
 go build
 ./transmute --help
 ```
+
+## Assumptions
+
+The goal of transmute is to parse and transform PubMed/Medline queries into queries suitable for other search engines.
+However, the parser makes some assumptions about the query:
+
+ - PubMed/Medline field names (`.tw`, `[Mesh]`, etc.) are mapped to generic field names such as `title` and 
+ `mesh_headings`.
+ - If a field name cannot be mapped, you will receive a warning and the field will be added without being mapped. This
+  allows queries such as `(a and b).abstract` to be transformed as (for example in ElasticSearch):
+  ```json
+  {
+      "bool": {
+          "disable_coord": true,
+          "must": [
+              {
+                  "match": {
+                      "abstract": "a"
+                  }
+              },
+              {
+                  "match": {
+                      "abstract": "b"
+                  }
+              }
+          ]
+      }
+  }
+  ```
+  - The parser does not attempt to simplify boolean expressions, so badly written queries will remain inefficient.
+  
+## Extending
+
+If you would like to extend transmute and create a new backend for it, have a read of the 
+[documentation](https://godoc.org/github.com/hscells/transmute/backend#Backend). As this should lead you in the right
+direction. Writing a new backend requires the transformation of the immediate representation into the target query
+language.
