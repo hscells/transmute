@@ -21,3 +21,17 @@ func IsLower(s string) bool {
 	}
 	return true
 }
+
+func IsOperator(s string) bool {
+	return s == "or" ||
+		s == "and" ||
+		s == "not" ||
+		s == "adj" ||
+		s == "adj2" ||
+		s == "adj3" ||
+		s == "adj4" ||
+		s == "adj5" ||
+		s == "adj6" ||
+		s == "adj7" ||
+		s == "adj8"
+}

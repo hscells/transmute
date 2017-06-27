@@ -47,7 +47,7 @@ func transformPrefixGroupToQueryGroup(prefix []string, queryGroup QueryGroup, fi
 	}
 
 	token := prefix[0]
-	if token == "and" || token == "or" || token == "not" {
+	if IsOperator(token) {
 		queryGroup.Type = token
 	} else if token == "(" {
 		var subGroup QueryGroup
@@ -85,10 +85,9 @@ func transformPrefixGroupToQueryGroup(prefix []string, queryGroup QueryGroup, fi
 					if char == fieldSeparator {
 						foundFieldSeparator = true
 						continue
-					} else if char == '*' {
+					} else if char == '*' || char == '$' {
 						// Check if the query string is truncated
 						keyword.Truncated = true
-						continue
 					}
 
 					// Check if the mesh heading has been exploded
@@ -137,6 +136,14 @@ func convertInfixToPrefix(infix []string) []string {
 		"and": 1,
 		"or": 0,
 		"not": 1,
+		"adj": 1,
+		"adj2": 1,
+		"adj3": 1,
+		"adj4": 1,
+		"adj5": 1,
+		"adj6": 1,
+		"adj7": 1,
+		"adj8": 1,
 	}
 
 	// The algorithm is slightly modified to also store the brackets in the result
@@ -185,13 +192,9 @@ func convertInfixToPrefix(infix []string) []string {
 }
 
 func addFieldsToKeywords(queryGroup QueryGroup, fields []string) QueryGroup {
-	log.Println(fields)
 	for i, keyword := range queryGroup.Keywords {
 		queryGroup.Keywords[i].Fields = append(keyword.Fields, fields...)
 	}
-
-	log.Println(queryGroup.Keywords)
-	log.Println(queryGroup.Keywords[0].Fields)
 
 	for _, child := range queryGroup.Children {
 		child = addFieldsToKeywords(child, fields)
@@ -225,7 +228,7 @@ func parseInfixKeywords(line string, startsAfter, fieldSeparator rune) QueryGrou
 
 		if unicode.IsSpace(char) {
 			t := strings.ToLower(currentToken)
-			if t == "or" || t == "and" || t == "not" {
+			if IsOperator(t) {
 				keyword = previousToken
 				stack = append(stack, strings.TrimSpace(keyword))
 				stack = append(stack, strings.TrimSpace(t))
@@ -413,7 +416,7 @@ func parsePrefixGrouping(group string, startsAfter rune) QueryGroup {
 		}
 
 		// Extract the groups
-		if operator != "or" && operator != "and" && operator != "not" {
+		if IsOperator(operator) {
 			operator += strings.ToLower(string(char))
 		}
 

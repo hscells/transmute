@@ -47,7 +47,8 @@ func Load(filename string) string {
 }
 
 
-// buildQuery takes a list of operators and keywords and constructs a boolean query.
+// buildQuery takes a list of operators and keywords and constructs a boolean query. This function recursively descends
+// the query group, building the immediate representation boolean query as it goes.
 func buildQuery(operators []QueryGroup, keywords []ir.Keyword, seenIds []int) ir.BooleanQuery {
 	booleanQuery := ir.BooleanQuery{}
 
@@ -146,11 +147,12 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 			queryGroup := parseInfixKeywords(line, startsAfter, fieldSeparator)
 			queryGroup.Id = lc
 			operators = append(operators, queryGroup)
-			break
+			continue
 		}
 
 		// Otherwise we can parse a more typical search strategy keyword
 		for i, char := range line {
+			//log.Println(string(char))
 			if inKeyword {
 				// Now that we are definitely looking at a keyword:
 
@@ -160,9 +162,8 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 				}
 
 				// Strip and acknowledge truncation
-				if char == '*' {
+				if char == '*' || char == '$' {
 					keyword.Truncated = true
-					continue
 				}
 
 				// Look for an `exploded` mesh heading
@@ -187,11 +188,13 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 					// keywords
 
 					// Continue building the query string
-					keyword.QueryString += string(char)
+					if char != startsAfter || len(keyword.QueryString) > 0 {
+						keyword.QueryString += string(char)
+					}
 
 					// Check if there is an operator at the start of the string
 					keywordLower := strings.ToLower(keyword.QueryString)
-					if keywordLower == "and" || keywordLower == "or" || keywordLower == "not" {
+					if IsOperator(keywordLower) {
 						queryGroup := parsePrefixGrouping(line, startsAfter)
 						queryGroup.Id = lc
 						operators = append(operators, queryGroup)
@@ -202,24 +205,14 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 
 					// Check if there is a number on its own and try to parse a query group
 					if unicode.IsSpace(char) {
-						isNumber := true;
-						for i, c := range keywordLower {
-							if i < len(keywordLower) - 1 && !unicode.IsNumber(c) {
-								isNumber = false
-								break
-							}
-						}
-
-						if isNumber {
+						if len(keywordLower) >= 1 && unicode.IsNumber(rune(keywordLower[0])) {
 							queryGroup := parseInfixGrouping(line, startsAfter)
 							queryGroup.Id = lc
 							operators = append(operators, queryGroup)
 							isAKeyword = false
 							break
 						}
-
 					}
-
 				} else if seenFieldSep {
 					// fields
 					if unicode.IsPunct(char) {
@@ -258,5 +251,7 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 		}
 	}
 
+	log.Println(keywords)
+	log.Println(operators)
 	return buildQuery(operators, keywords, nil)
 }
