@@ -10,33 +10,6 @@ import (
 	"log"
 )
 
-var (
-	fieldMap = map[string][]string{
-		"mp": []string{"title", "abstract", "mesh_headings"},
-		"af": []string{"title", "abstract", "mesh_headings"},
-		"tw": []string{"title", "abstract"},
-		"nm": []string{"abstract", "mesh_headings"},
-		"ab": []string{"abstract"},
-		"ti": []string{"title"},
-		"ot": []string{"title"},
-		"sh": []string{"mesh_headings"},
-		"px": []string{"mesh_headings"},
-		"rs": []string{"mesh_headings"},
-		"fs": []string{"mesh_headings"},
-		"rn": []string{"mesh_headings"},
-		"kf": []string{"mesh_headings"},
-		"sb": []string{"mesh_headings"},
-		"mh": []string{"mesh_headings"},
-		"pt": []string{"pubtype"},
-
-		"tiab": []string{"title", "abstract"},
-
-		"Mesh": []string{"mesh_headings"},
-		"Title": []string{"title"},
-		"Title/Abstract": []string{"title", "abstract"},
-	}
-)
-
 // Load a search strategy from a file.
 func Load(filename string) string {
 	data, err := ioutil.ReadFile(filename)
@@ -58,8 +31,6 @@ func buildQuery(operators []QueryGroup, keywords []ir.Keyword, seenIds []int) ir
 
 	currentOp := operators[len(operators) - 1]
 
-	//log.Println(currentOp)
-
 	for _, id := range seenIds {
 		if currentOp.Id == id {
 			return booleanQuery
@@ -74,18 +45,21 @@ func buildQuery(operators []QueryGroup, keywords []ir.Keyword, seenIds []int) ir
 
 	if len(currentOp.KeywordNumbers) > 0 {
 		for _, keywordId := range currentOp.KeywordNumbers {
+			// Append the children of the operators to the boolean query
 			for _, j := range operators {
 				if j.Id == keywordId {
 					booleanQuery.Children = append(booleanQuery.Children, buildQuery(append(operators, j), keywords, seenIds))
 				}
 			}
 
+			// Append the keywords to the boolean query
 			for _, keyword := range keywords {
 				if keyword.Id == keywordId {
 					booleanQuery.Keywords = append(booleanQuery.Keywords, keyword)
 				}
 			}
 
+			// Append the children of the current operator to the boolean query
 			if len(currentOp.Children) > 0 {
 				booleanQuery.Children = append(booleanQuery.Children, buildQuery(currentOp.Children, keywords, nil))
 			}
@@ -152,7 +126,6 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 
 		// Otherwise we can parse a more typical search strategy keyword
 		for i, char := range line {
-			//log.Println(string(char))
 			if inKeyword {
 				// Now that we are definitely looking at a keyword:
 
@@ -199,7 +172,6 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 						queryGroup.Id = lc
 						operators = append(operators, queryGroup)
 						isAKeyword = false
-						log.Println(queryGroup)
 						break
 					}
 
@@ -251,7 +223,5 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 		}
 	}
 
-	log.Println(keywords)
-	log.Println(operators)
 	return buildQuery(operators, keywords, nil)
 }

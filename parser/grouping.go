@@ -1,3 +1,6 @@
+// Package parser implements a parser for the search strategies in systematic reviews. The goal of the parser is to
+// transform it into an immediate representation that can then be translated into queries suitable for other systems.
+//
 // The grouping code handles "query groups". These are expressions in search strategies that look like:
 //
 // or/3-5
@@ -103,7 +106,7 @@ func transformPrefixGroupToQueryGroup(prefix []string, queryGroup QueryGroup, fi
 					} else {
 						// Now we are in the fields state
 						if (unicode.IsPunct(char) || unicode.IsSpace(char)) && len(field) > 0 {
-							keyword.Fields = append(keyword.Fields, fieldMap[field]...)
+							keyword.Fields = append(keyword.Fields, LookupField(field)...)
 							field = ""
 						} else {
 							field += string(char)
@@ -272,13 +275,13 @@ func parseInfixKeywords(line string, startsAfter, fieldSeparator rune) QueryGrou
 			if char == fieldSeparator {
 				continue
 			} else if (unicode.IsPunct(char) || unicode.IsSpace(char)) && len(field) > 0 {
-				fields = append(fields, fieldMap[field]...)
+				fields = append(fields, LookupField(field)...)
 				field = ""
 			} else {
 				field += string(char)
 			}
 		}
-		fields = append(fields, fieldMap[field]...)
+		fields = append(fields, LookupField(field)...)
 
 		stack = stack[:len(stack) - 2]
 	}

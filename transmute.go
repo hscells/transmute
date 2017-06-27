@@ -7,6 +7,8 @@ import (
 	"github.com/hscells/transmute/parser"
 	"os"
 	"io/ioutil"
+	"github.com/hscells/transmute/backend"
+	"fmt"
 )
 
 type args struct {
@@ -14,6 +16,7 @@ type args struct {
 	Output         string `arg:"help:File to output the transformed query to."`
 	StartsAfter    string `arg:"help:Character the keywords in a search strategy start after."`
 	FieldSeparator string `arg:"help:Character the separates a keyword from the field used to search on."`
+	Backend        string `arg:"help:Which backend to use (ir/elasticsearch)."`
 }
 
 func (args) Version() string {
@@ -21,7 +24,7 @@ func (args) Version() string {
 }
 
 func (args) Description() string {
-	return "Pubmed/Medline query transpiler."
+	return "Pubmed/Medline query transpiler. Can read input from stdin and will output to stdout by default."
 }
 
 func main() {
@@ -35,9 +38,16 @@ func main() {
 	// Specify default values
 	args.StartsAfter = " "
 	args.FieldSeparator = "."
+	args.Backend = "ir"
 
 	// Parse the args into the struct
 	arg.MustParse(&args)
+
+	// Make sure the backend exists
+	if args.Backend != "ir" && args.Backend != "elasticsearch" {
+		fmt.Println(fmt.Sprintf("%v is not a valid backend. See `transmute --help` for details.", args.Backend))
+		os.Exit(1)
+	}
 
 	// Grab the input file (if defaults to stdin).
 	if args.Input != "" {
@@ -75,11 +85,18 @@ func main() {
 	// Parse the query into our own format
 	ir_query := parser.Parse(query, startsAfter, fieldSeparator)
 
-	// format the output
-	d, err := json.MarshalIndent(ir_query, "", "    ")
-	if err != nil {
-		panic(err)
+	// Output the query
+	switch args.Backend {
+	case "ir":
+		// format the output
+		d, err := json.MarshalIndent(ir_query, "", "    ")
+		if err != nil {
+			panic(err)
+		}
+		outputFile.Write(d)
+	case "elasticsearch":
+		be := backend.NewElasticSearchBackend()
+		bq := be.Compile(ir_query)
+		outputFile.Write([]byte(bq.StringPretty()))
 	}
-
-	outputFile.Write(d)
 }
