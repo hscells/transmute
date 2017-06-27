@@ -7,7 +7,6 @@ import (
 	"github.com/hscells/transmute/ir"
 	"strings"
 	"unicode"
-	"log"
 )
 
 // Load a search strategy from a file.
@@ -188,12 +187,7 @@ func Parse(query string, startsAfter rune, fieldSeparator rune) ir.BooleanQuery 
 				} else if seenFieldSep {
 					// fields
 					if unicode.IsPunct(char) {
-						if fields, ok := fieldMap[currentField]; ok {
-							keyword.Fields = append(keyword.Fields, fields...)
-						} else {
-							log.Panicf("Cannot find mapping for field %v", currentField)
-						}
-
+						keyword.Fields = append(keyword.Fields, LookupField(currentField)...)
 						currentField = ""
 					} else {
 						currentField += string(char)
