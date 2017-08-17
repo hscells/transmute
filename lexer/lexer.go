@@ -1,3 +1,4 @@
+// Package lexer build a query tree from the search strategy.
 package lexer
 
 import (
@@ -5,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 	"log"
-	"encoding/json"
 )
 
 var (
@@ -159,9 +159,6 @@ func Lex(query string) (Node, error) {
 		// In the second pass, we then parse a second time recursively to expand the inner queries at depth 1.
 		ast = ExpandQuery(depth1Query)
 	}
-
-	p, _ := json.MarshalIndent(ast, "", "    ")
-	log.Println(string(p))
 
 	return ast, nil
 }

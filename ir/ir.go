@@ -5,7 +5,6 @@ package ir
 // contains the phrase to search, but the fields in the database to search, how it is truncated, and if it is a mesh
 // term, if the term has been exploded.
 type Keyword struct {
-	Id          int
 	QueryString string       `json:"query"`
 	Fields      []string     `json:"fields"`
 	Exploded    bool         `json:"exploded"`
