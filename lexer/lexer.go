@@ -5,7 +5,6 @@ import (
 	"strings"
 	"regexp"
 	"strconv"
-	"log"
 )
 
 var (
@@ -67,8 +66,6 @@ func ExpandQuery(query map[int]map[string]map[int]string) Node {
 	var bottomReference int
 	var operator string
 
-	log.Println(query, len(query))
-
 	// Populate the top level node in the ast
 	if len(query) == 1 {
 		for k, v := range query {
@@ -123,6 +120,7 @@ func ExpandQuery(query map[int]map[string]map[int]string) Node {
 func Lex(query string) (Node, error) {
 	query = PreProcess(query)
 
+	// reference -> operator -> reference -> query_string
 	depth1Query := map[int]map[string]map[int]string{}
 	queries := map[int]string{}
 
@@ -132,14 +130,12 @@ func Lex(query string) (Node, error) {
 		// First check if we are looking at an operator.
 
 		if numberRegex.MatchString(strings.Split(line, " ")[0]) {
-			log.Println(line)
 			// Assume we are looking at `N OP N OP N`.
 			depth1Query[reference+1], err = ProcessInfixOperators(queries, line)
 			if err != nil {
 				return Node{}, err
 			}
 		} else if prefixRegex.MatchString(line) {
-			log.Println(line)
 			// Assume we are looking at `OP/N-N
 			depth1Query[reference+1], err = ProcessPrefixOperators(queries, line)
 			if err != nil {
@@ -153,7 +149,6 @@ func Lex(query string) (Node, error) {
 
 	var ast Node
 	if len(depth1Query) == 0 {
-		log.Println(queries)
 		ast = Node{Value: queries[0], Reference: 1}
 	} else {
 		// In the second pass, we then parse a second time recursively to expand the inner queries at depth 1.

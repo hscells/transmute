@@ -8,7 +8,8 @@ import (
 )
 
 type QueryTransformer interface {
-	Transform(query string) ir.Keyword
+	TransformSingle(query string) ir.Keyword
+	TransformNested(query string) ir.BooleanQuery
 }
 
 type QueryParser struct {
@@ -17,12 +18,23 @@ type QueryParser struct {
 }
 
 func (q QueryParser) Parse(ast lexer.Node) ir.BooleanQuery {
+	if ast.Children == nil && ast.Reference == 1 {
+		return q.Parser.TransformNested(ast.Value)
+	}
+
+
 	var visit func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery
 	visit = func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery {
 		query.Operator = node.Operator
 		for _, child := range node.Children {
 			if len(child.Operator) == 0 {
-				query.Keywords = append(query.Keywords, q.Parser.Transform(child.Value))
+				// Nested query.
+				if child.Value[0] == '(' {
+					query.Children = append(query.Children, q.Parser.TransformNested(child.Value))
+				} else {
+					// Regular line of a query.
+					query.Keywords = append(query.Keywords, q.Parser.TransformSingle(child.Value))
+				}
 			} else {
 				query.Children = append(query.Children, visit(child, ir.BooleanQuery{}))
 			}

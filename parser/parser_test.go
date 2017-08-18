@@ -2,15 +2,15 @@ package parser
 
 import (
 	"testing"
-	"encoding/json"
 	"github.com/hscells/transmute/lexer"
 	"os"
 	"io/ioutil"
 	"log"
+	"github.com/hscells/transmute/backend"
 )
 
 func TestParsr(t *testing.T) {
-	q, _ := os.Open("../data/240")
+	q, _ := os.Open("../data/test")
 	qp, _ := ioutil.ReadAll(q)
 
 	ast, err := lexer.Lex(string(qp))
@@ -18,16 +18,16 @@ func TestParsr(t *testing.T) {
 		panic(err)
 	}
 
-	parser := NewPubMedParser()
+	parser := NewMedlineParser()
 	query := parser.Parse(ast)
 
-	//log.Println(string(qp))
+	log.Println(string(qp))
 
 	//p, _ := json.MarshalIndent(ast, "", "    ")
 	//log.Println(string(p))
 
-	p, _ := json.MarshalIndent(query, "", "    ")
-	log.Println(string(p))
+	//p, _ := json.MarshalIndent(query, "", "    ")
+	//log.Println(string(p))
 
-	//log.Println(backend.NewElasticSearchBackend().Compile(query).StringPretty())
+	log.Println(backend.NewElasticSearchBackend().Compile(query).StringPretty())
 }
