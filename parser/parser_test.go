@@ -7,10 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"github.com/hscells/transmute/backend"
+	"encoding/json"
 )
 
 func TestParsr(t *testing.T) {
-	q, _ := os.Open("../data/test")
+	q, _ := os.Open("../data/445")
 	qp, _ := ioutil.ReadAll(q)
 
 	ast, err := lexer.Lex(string(qp))
@@ -23,11 +24,11 @@ func TestParsr(t *testing.T) {
 
 	log.Println(string(qp))
 
-	//p, _ := json.MarshalIndent(ast, "", "    ")
-	//log.Println(string(p))
+	p, _ := json.MarshalIndent(ast, "", "    ")
+	log.Println(string(p))
 
-	//p, _ := json.MarshalIndent(query, "", "    ")
-	//log.Println(string(p))
+	p, _ = json.MarshalIndent(query, "", "    ")
+	log.Println(string(p))
 
 	log.Println(backend.NewElasticSearchBackend().Compile(query).StringPretty())
 }
