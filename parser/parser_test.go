@@ -2,58 +2,33 @@ package parser
 
 import (
 	"testing"
-	"fmt"
+	"github.com/hscells/transmute/lexer"
+	"os"
+	"io/ioutil"
+	"log"
+	"github.com/hscells/transmute/backend"
 	"encoding/json"
 )
 
-func TestParse46(t *testing.T) {
-	data := Load("../data/46")
-	fmt.Println(data)
-	query := Parse(data, ' ', '.')
+func TestParsr(t *testing.T) {
+	q, _ := os.Open("../data/445")
+	qp, _ := ioutil.ReadAll(q)
 
-	d, err := json.MarshalIndent(query, "", "    ")
+	ast, err := lexer.Lex(string(qp))
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(string(d))
+	parser := NewMedlineParser()
+	query := parser.Parse(ast)
+
+	log.Println(string(qp))
+
+	p, _ := json.MarshalIndent(ast, "", "    ")
+	log.Println(string(p))
+
+	p, _ = json.MarshalIndent(query, "", "    ")
+	log.Println(string(p))
+
+	log.Println(backend.NewElasticSearchBackend().Compile(query).StringPretty())
 }
-
-func TestParse450(t *testing.T) {
-	data := Load("../data/450")
-	fmt.Println(data)
-	query := Parse(data, rune(0), rune(0))
-
-	d, err := json.MarshalIndent(query, "", "    ")
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(d))
-}
-
-func TestParse433(t *testing.T) {
-	data := Load("../data/433")
-	fmt.Println(data)
-	query := Parse(data, rune(0), rune(0))
-
-	d, err := json.MarshalIndent(query, "", "    ")
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(d))
-}
-
-//func TestParse288(t *testing.T) {
-//	data := Load("../data/288")
-//	fmt.Println(data)
-//	query := Parse(data, ' ', '.')
-//
-//	d, err := json.MarshalIndent(query, "", "\t")
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	fmt.Println(string(d))
-//}
