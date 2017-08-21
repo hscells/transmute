@@ -9,22 +9,26 @@ import (
 	"io/ioutil"
 	"github.com/hscells/transmute/backend"
 	"fmt"
+	"github.com/hscells/transmute/lexer"
+	"github.com/hscells/transmute/ir"
 )
 
 type args struct {
-	Input          string `arg:"help:File containing a search strategy."`
-	Output         string `arg:"help:File to output the transformed query to."`
-	StartsAfter    string `arg:"help:Character the keywords in a search strategy start after."`
-	FieldSeparator string `arg:"help:Character the separates a keyword from the field used to search on."`
-	Backend        string `arg:"help:Which backend to use (ir/elasticsearch)."`
+	Input   string `arg:"help:File containing a search strategy."`
+	Output  string `arg:"help:File to output the transformed query to."`
+	Parser  string `arg:"help:Which parser to use (medline)"`
+	Backend string `arg:"help:Which backend to use (ir/elasticsearch)."`
 }
 
 func (args) Version() string {
-	return "transmute 0.0.1"
+	return "transmute 21.Aug.2017"
 }
 
 func (args) Description() string {
-	return "Pubmed/Medline query transpiler. Can read input from stdin and will output to stdout by default."
+	return `Pubmed/Medline query transpiler. Can read input from stdin and will output to stdout by default. See --help
+for more details.
+For further documentation see https://godoc.org/github.com/hscells/transmute.
+To view the source or to contribute see https://github.com/hscells/transmute.`
 }
 
 func main() {
@@ -32,13 +36,10 @@ func main() {
 	var query string
 	inputFile := os.Stdin
 	outputFile := os.Stdout
-	startsAfter := rune(0)
-	fieldSeparator := rune('.')
 
 	// Specify default values
-	args.StartsAfter = " "
-	args.FieldSeparator = "."
-	args.Backend = "ir"
+	args.Parser = "medline"
+	args.Backend = "elasticsearch"
 
 	// Parse the args into the struct
 	arg.MustParse(&args)
@@ -50,9 +51,17 @@ func main() {
 	}
 
 	// Grab the input file (if defaults to stdin).
-	if args.Input != "" {
+	if len(args.Input) > 0 {
 		// Load the query
-		query = parser.Load(args.Input)
+		fp, err := os.Open(args.Input)
+		if err != nil {
+			panic(err)
+		}
+		qb, err := ioutil.ReadAll(fp)
+		if err != nil {
+			panic(err)
+		}
+		query = string(qb)
 	} else {
 		data, err := ioutil.ReadAll(inputFile)
 		if err != nil {
@@ -74,29 +83,28 @@ func main() {
 		}
 	}
 
-	// Override the default values
-	if len(args.StartsAfter) > 0 {
-		startsAfter = rune(args.StartsAfter[0])
-	}
-	if len(args.FieldSeparator) > 0 {
-		fieldSeparator = rune(args.FieldSeparator[0])
+	ast, err := lexer.Lex(query)
+	if err != nil {
+		panic(err)
 	}
 
-	// Parse the query into our own format
-	ir_query := parser.Parse(query, startsAfter, fieldSeparator)
+	var immediate ir.BooleanQuery
+	switch args.Backend {
+	case "medline":
+	default:
+		immediate = parser.NewMedlineParser().Parse(ast)
+	}
 
 	// Output the query
 	switch args.Backend {
 	case "ir":
 		// format the output
-		d, err := json.MarshalIndent(ir_query, "", "    ")
+		d, err := json.MarshalIndent(immediate, "", "    ")
 		if err != nil {
 			panic(err)
 		}
 		outputFile.Write(d)
 	case "elasticsearch":
-		be := backend.NewElasticSearchBackend()
-		bq := be.Compile(ir_query)
-		outputFile.Write([]byte(bq.StringPretty()))
+		outputFile.WriteString(backend.NewElasticSearchBackend().Compile(immediate).StringPretty())
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 	"unicode"
+	"regexp"
 )
 
 var MedlineFieldMapping = map[string][]string{
@@ -26,9 +27,11 @@ var MedlineFieldMapping = map[string][]string{
 	"pt": {"pubtype"},
 }
 
+var adjMatchRegexp, _ = regexp.Compile("^adj[0-9]*$")
+
 type MedlineParser struct{}
 
-func TransformFields(fields string) []string {
+func (p MedlineParser) TransformFields(fields string) []string {
 	parts := strings.Split(fields, ",")
 	mappedFields := []string{}
 	for _, field := range parts {
@@ -78,7 +81,7 @@ func (p MedlineParser) TransformSingle(query string) ir.Keyword {
 		parts := strings.Split(query, ".")
 		if len(parts) == 3 {
 			queryString = parts[0]
-			fields = TransformFields(parts[1])
+			fields = p.TransformFields(parts[1])
 		} else {
 			queryString = query
 		}
@@ -110,7 +113,7 @@ func (p MedlineParser) TransformPrefixGroupToQueryGroup(prefix []string, queryGr
 	}
 
 	token := prefix[0]
-	if IsOperator(token) {
+	if p.IsOperator(token) {
 		queryGroup.Operator = token
 	} else if token == "(" {
 		var subGroup ir.BooleanQuery
@@ -130,7 +133,7 @@ func (p MedlineParser) TransformPrefixGroupToQueryGroup(prefix []string, queryGr
 
 // ConvertInfixToPrefix translates an infix grouping expression into a prefix expression. The way this is done is the
 // Shunting-yard algorithm (https://en.wikipedia.org/wiki/Shunting-yard_algorithm).
-func ConvertInfixToPrefix(infix []string) []string {
+func (p MedlineParser) ConvertInfixToPrefix(infix []string) []string {
 	// The stack contains some intermediate values
 	stack := []string{}
 	// The result contains the actual expression
@@ -211,7 +214,7 @@ func (p MedlineParser) ParseInfixKeywords(line string, fields []string) ir.Boole
 	for _, char := range line {
 		if unicode.IsSpace(char) {
 			t := strings.ToLower(currentToken)
-			if IsOperator(t) {
+			if p.IsOperator(t) {
 				keyword = previousToken
 				stack = append(stack, strings.TrimSpace(keyword))
 				stack = append(stack, strings.TrimSpace(t))
@@ -248,7 +251,7 @@ func (p MedlineParser) ParseInfixKeywords(line string, fields []string) ir.Boole
 	if len(endTokens) > 0 {
 		stack = append(stack, endTokens)
 	}
-	prefix := ConvertInfixToPrefix(stack)
+	prefix := p.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
 		prefix = prefix[1:len(prefix)-1]
 	}
@@ -287,18 +290,11 @@ func ReversePreservingCombiningCharacters(s string) string {
 }
 
 // IsOperator tests to see if a string is a valid PubMed/Medline operator.
-func IsOperator(s string) bool {
+func (p MedlineParser) IsOperator(s string) bool {
 	return s == "or" ||
 		s == "and" ||
 		s == "not" ||
-		s == "adj" ||
-		s == "adj2" ||
-		s == "adj3" ||
-		s == "adj4" ||
-		s == "adj5" ||
-		s == "adj6" ||
-		s == "adj7" ||
-		s == "adj8"
+		adjMatchRegexp.MatchString(s)
 }
 
 func NewMedlineParser() QueryParser {

@@ -7,21 +7,30 @@ import (
 	"github.com/hscells/transmute/ir"
 )
 
+// QueryTransformer must be implemented to parse queries.
 type QueryTransformer interface {
+	// TransformSingle transforms a single query string.
 	TransformSingle(query string) ir.Keyword
+
+	// TransformNested transforms a nested query - queries that start with a `(`.
 	TransformNested(query string) ir.BooleanQuery
 }
 
+// QueryParser represents the full implementation of a query parser.
 type QueryParser struct {
+	// FieldMapping determines how fields are mapped for a query.
 	FieldMapping map[string][]string
-	Parser       QueryTransformer
+
+	// Parser is an implemented QueryTransformer.
+	Parser QueryTransformer
 }
 
+// Parse takes an AST created from lexing a query and parses each node in it. It uses the TransformNested and
+// TransformSingle functions defined by the Parser and the Field mapping to create an immediate representation tree.
 func (q QueryParser) Parse(ast lexer.Node) ir.BooleanQuery {
 	if ast.Children == nil && ast.Reference == 1 {
 		return q.Parser.TransformNested(ast.Value)
 	}
-
 
 	var visit func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery
 	visit = func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery {

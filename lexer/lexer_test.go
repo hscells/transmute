@@ -9,7 +9,7 @@ import (
 )
 
 func TestLexPubmedQuery(t *testing.T) {
-	q, _ := os.Open("../data/433")
+	q, _ := os.Open("../data/43")
 	qp, _ := ioutil.ReadAll(q)
 
 	ast, err := Lex(string(qp))

@@ -27,10 +27,12 @@ type ElasticSearchBooleanQuery struct {
 
 type ElasticSearchBackend struct{}
 
+// NewElasticSearchBackend returns a new backend for compiling Elasticsearch queries.
 func NewElasticSearchBackend() ElasticSearchBackend {
 	return ElasticSearchBackend{}
 }
 
+// Compile transforms an immediate representation of a query into an Elasticsearch query.
 func (b ElasticSearchBackend) Compile(ir ir.BooleanQuery) ElasticSearchBooleanQuery {
 	elasticSearchBooleanQuery := ElasticSearchBooleanQuery{}
 
@@ -49,11 +51,11 @@ func (b ElasticSearchBackend) Compile(ir ir.BooleanQuery) ElasticSearchBooleanQu
 
 	// This is really the only thing that differs from the IR; ElasticSearch has funny boolean operators
 	switch ir.Operator {
-	case "or":
+	case "or", "OR":
 		elasticSearchBooleanQuery.grouping = "should"
-	case "not":
+	case "not", "NOT":
 		elasticSearchBooleanQuery.grouping = "must_not"
-	case "and":
+	case "and", "AND":
 		elasticSearchBooleanQuery.grouping = "filter"
 	default:
 		elasticSearchBooleanQuery.grouping = ir.Operator
@@ -63,13 +65,16 @@ func (b ElasticSearchBackend) Compile(ir ir.BooleanQuery) ElasticSearchBooleanQu
 	return elasticSearchBooleanQuery
 }
 
-func transformElasticsearchQuery(q ElasticSearchBooleanQuery) map[string]interface{} {
+// TransformElasticsearchQuery is a wrapper for the traverseGroup function. This function should be used to transform
+// the Elasticsearch ir into a valid Elasticsearch query.
+func (q ElasticSearchBooleanQuery) TransformElasticsearchQuery() map[string]interface{} {
 	return map[string]interface{}{
-		"query": traverseGroup(map[string]interface{}{}, q),
+		"query": q.traverseGroup(map[string]interface{}{}),
 	}
 }
 
-func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map[string]interface{} {
+// traverseGroup recursively transforms the Elasticsearch ir into a valid Elasticsearch query representable in JSON.
+func (q ElasticSearchBooleanQuery) traverseGroup(node map[string]interface{}) map[string]interface{} {
 	// a group is a node in the tree
 	group := map[string]interface{}{}
 
@@ -88,7 +93,7 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 			// Create the clauses inside one side of the span
 			innerClauses := []interface{}{}
 			for _, query := range child.queries {
-				innerClauses = CreateAdjacentClause(query, innerClauses)
+				innerClauses = append(innerClauses, query.createAdjacentClause())
 			}
 			// Nest the inner clauses inside a span_or.
 			clause := map[string]interface{}{
@@ -103,7 +108,7 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 
 		innerClauses := []interface{}{}
 		for _, query := range q.queries {
-			innerClauses = CreateAdjacentClause(query, innerClauses)
+			innerClauses = append(innerClauses, query.createAdjacentClause())
 		}
 		// Nest the inner clauses inside a span_or.
 		clause := map[string]interface{}{
@@ -134,14 +139,14 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 		node = group
 	} else {
 		for i := range q.queries {
-			// choose a multi_match or a match if the query has > 1 field associated with it or not
+			// Choose a multi_match or a match if the query has > 1 field associated with it or not.
 			query := map[string]interface{}{}
 			var fields = q.queries[i].fields
 
 			// TODO maybe it should default to _all if there are no fields?
 			queryString := q.queries[i].queryString
 
-			// now, we can have a general way of constructing the query
+			// Now, we can have a general way of constructing the query.
 			if len(fields) > 1 {
 				if strings.ContainsAny(queryString, "*?") {
 					queries := []interface{}{}
@@ -167,7 +172,7 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 							"fields": fields,
 						},
 					}
-					// add the phrase type if there are spaces
+					// Add the phrase type if there are spaces.
 					if strings.Contains(queryString, " ") {
 						q := query["multi_match"].(map[string]interface{})
 						q["type"] = "phrase"
@@ -183,14 +188,14 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 						},
 					}
 				} else if strings.Contains(queryString, " ") {
-					// one type of query is needed for matching phrases
+					// One type of query is needed for matching phrases.
 					query = map[string]interface{}{
 						"match_phrase": map[string]interface{}{
 							fields[0]: queryString,
 						},
 					}
 				} else {
-					// otherwise we just use a regular match query
+					// Otherwise we just use a regular match query.
 					query = map[string]interface{}{
 						"match": map[string]interface{}{
 							fields[0]: queryString,
@@ -203,14 +208,14 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 			subQuery++
 		}
 
-		// and then the children
+		// And then the children.
 		for i := range q.children {
-			// children are non-terminal so we descend down the tree
-			groups[subQuery] = traverseGroup(map[string]interface{}{}, q.children[i])
+			// Children are non-terminal so we descend down the tree.
+			groups[subQuery] = q.children[i].traverseGroup(map[string]interface{}{})
 			subQuery++
 		}
 
-		// finally, we have a layer to the tree, so return it upwards
+		// Finally, we have a layer to the tree, so return it upwards.
 		group[q.grouping] = groups
 		group["disable_coord"] = true
 		node["bool"] = group
@@ -218,26 +223,32 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 
 	return node
 }
-func CreateAdjacentClause(query ElasticSearchQuery, innerClauses []interface{}) []interface{} {
-	if len(query.fields) != 1 {
-		panic(errors.New(fmt.Sprintf("query `%v` has too many fields (%v)", query.queryString, query.fields)))
+
+// createAdjacentClause attempts to create an Elasticsearch version of the `adj` operator in Pubmed/Medline (slop).
+func (q ElasticSearchQuery) createAdjacentClause() []interface{} {
+	innerClauses := []interface{}{}
+	if len(q.fields) != 1 {
+		panic(errors.New(fmt.Sprintf("query `%v` has too many fields (%v)", q.queryString, q.fields)))
 	}
-	if strings.Contains(query.queryString, "*") || strings.Contains(query.queryString, "?") {
+
+	// Create the wildcard query.
+	if strings.Contains(q.queryString, "*") || strings.Contains(q.queryString, "?") {
 		innerClauses = append(innerClauses, map[string]interface{}{
 			"span_multi": map[string]interface{}{
 				"match": map[string]interface{}{
 					"wildcard": map[string]interface{}{
-						query.fields[0]: query.queryString,
+						q.fields[0]: q.queryString,
 					},
 				},
 			},
 		})
 	} else {
+		// Create a term matching query.
 		innerClauses = append(innerClauses, map[string]interface{}{
 			"span_multi": map[string]interface{}{
 				"match": map[string]interface{}{
 					"term": map[string]interface{}{
-						query.fields[0]: query.queryString,
+						q.fields[0]: q.queryString,
 					},
 				},
 			},
@@ -246,16 +257,19 @@ func CreateAdjacentClause(query ElasticSearchQuery, innerClauses []interface{}) 
 	return innerClauses
 }
 
+// Children returns the branches in the tree of a query.
 func (q ElasticSearchBooleanQuery) Children() []ElasticSearchBooleanQuery {
 	return q.children
 }
 
+// String creates a machine-readable JSON Elasticsearch query.
 func (q ElasticSearchBooleanQuery) String() string {
-	b, _ := json.Marshal(transformElasticsearchQuery(q))
+	b, _ := json.Marshal(q.TransformElasticsearchQuery())
 	return string(b)
 }
 
+// StringPretty creates a human-readable JSON Elasticsearch query.
 func (q ElasticSearchBooleanQuery) StringPretty() string {
-	b, _ := json.MarshalIndent(transformElasticsearchQuery(q), "", "    ")
+	b, _ := json.MarshalIndent(q.TransformElasticsearchQuery(), "", "    ")
 	return string(b)
 }
