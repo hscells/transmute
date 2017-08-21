@@ -88,20 +88,7 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 			// Create the clauses inside one side of the span
 			innerClauses := []interface{}{}
 			for _, query := range child.queries {
-				if len(query.fields) != 1 {
-					panic(errors.New(fmt.Sprintf("query `%v` has too many fields (%v)", query.queryString, query.fields)))
-				}
-				if strings.Contains(query.queryString, "*") || strings.Contains(query.queryString, "?") {
-					innerClauses = append(innerClauses, map[string]interface{}{
-						"span_multi": map[string]interface{}{
-							"match": map[string]interface{}{
-								"wildcard": map[string]interface{}{
-									query.fields[0]: query.queryString,
-								},
-							},
-						},
-					})
-				}
+				innerClauses = CreateAdjacentClause(query, innerClauses)
 			}
 			// Nest the inner clauses inside a span_or.
 			clause := map[string]interface{}{
@@ -113,6 +100,20 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 			// Add this clause to the outer most span_near.
 			clauses = append(clauses, clause)
 		}
+
+		innerClauses := []interface{}{}
+		for _, query := range q.queries {
+			innerClauses = CreateAdjacentClause(query, innerClauses)
+		}
+		// Nest the inner clauses inside a span_or.
+		clause := map[string]interface{}{
+			"span_or": map[string]interface{}{
+				"clauses": innerClauses,
+			},
+		}
+
+		// Add this clause to the outer most span_near.
+		clauses = append(clauses, clause)
 
 		// Extract the size of the adjacency (slop size)
 		slopString := strings.Replace(q.grouping, "adj", "", -1)
@@ -216,6 +217,33 @@ func traverseGroup(node map[string]interface{}, q ElasticSearchBooleanQuery) map
 	}
 
 	return node
+}
+func CreateAdjacentClause(query ElasticSearchQuery, innerClauses []interface{}) []interface{} {
+	if len(query.fields) != 1 {
+		panic(errors.New(fmt.Sprintf("query `%v` has too many fields (%v)", query.queryString, query.fields)))
+	}
+	if strings.Contains(query.queryString, "*") || strings.Contains(query.queryString, "?") {
+		innerClauses = append(innerClauses, map[string]interface{}{
+			"span_multi": map[string]interface{}{
+				"match": map[string]interface{}{
+					"wildcard": map[string]interface{}{
+						query.fields[0]: query.queryString,
+					},
+				},
+			},
+		})
+	} else {
+		innerClauses = append(innerClauses, map[string]interface{}{
+			"span_multi": map[string]interface{}{
+				"match": map[string]interface{}{
+					"term": map[string]interface{}{
+						query.fields[0]: query.queryString,
+					},
+				},
+			},
+		})
+	}
+	return innerClauses
 }
 
 func (q ElasticSearchBooleanQuery) Children() []ElasticSearchBooleanQuery {
