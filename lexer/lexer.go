@@ -9,9 +9,10 @@ import (
 
 var (
 	numberRegex, _ = regexp.Compile("^[0-9]+$")
-	prefixRegex, _ = regexp.Compile("^(or|and|not)/[0-9]+-[0-9]+$")
+	prefixRegex, _ = regexp.Compile("^(or|and|not|OR|AND|NOT)/[0-9]+-[0-9]+$")
 )
 
+// Node contains the encoding of the query as a tree.
 type Node struct {
 	Value     string
 	Reference int
@@ -23,7 +24,9 @@ type Node struct {
 func ProcessInfixOperators(queries map[int]string, operators string) (map[string]map[int]string, error) {
 	extracted := map[int]string{}
 	var operator string
+	// We can be pretty sure that this will be correct.
 	for i, token := range strings.Split(operators, " ") {
+		// This is a bit of a hack but it does the job.
 		if i%2 == 0 {
 			reference, err := strconv.Atoi(token)
 			if err != nil {
