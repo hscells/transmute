@@ -21,7 +21,7 @@ type args struct {
 }
 
 func (args) Version() string {
-	return "transmute 21.Aug.2017"
+	return "transmute 29.Aug.2017"
 }
 
 func (args) Description() string {
@@ -105,6 +105,6 @@ func main() {
 		}
 		outputFile.Write(d)
 	case "elasticsearch":
-		outputFile.WriteString(backend.NewElasticSearchBackend().Compile(immediate).StringPretty())
+		outputFile.WriteString(backend.NewElasticsearchCompiler().Compile(immediate).StringPretty())
 	}
 }

@@ -14,32 +14,32 @@ import (
 	"strconv"
 )
 
-type ElasticSearchQuery struct {
+type ElasticsearchQuery struct {
 	queryString string
 	fields      []string
 }
 
-type ElasticSearchBooleanQuery struct {
-	queries  []ElasticSearchQuery
+type ElasticsearchBooleanQuery struct {
+	queries  []ElasticsearchQuery
 	grouping string
-	children []ElasticSearchBooleanQuery
+	children []BooleanQuery
 }
 
-type ElasticSearchBackend struct{}
+type ElasticsearchCompiler struct{}
 
-// NewElasticSearchBackend returns a new backend for compiling Elasticsearch queries.
-func NewElasticSearchBackend() ElasticSearchBackend {
-	return ElasticSearchBackend{}
+// NewElasticsearchCompiler returns a new backend for compiling Elasticsearch queries.
+func NewElasticsearchCompiler() ElasticsearchCompiler {
+	return ElasticsearchCompiler{}
 }
 
 // Compile transforms an immediate representation of a query into an Elasticsearch query.
-func (b ElasticSearchBackend) Compile(ir ir.BooleanQuery) ElasticSearchBooleanQuery {
-	elasticSearchBooleanQuery := ElasticSearchBooleanQuery{}
+func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
+	elasticSearchBooleanQuery := ElasticsearchBooleanQuery{}
 
-	queries := []ElasticSearchQuery{}
+	queries := []ElasticsearchQuery{}
 
 	for _, keyword := range ir.Keywords {
-		query := ElasticSearchQuery{}
+		query := ElasticsearchQuery{}
 		query.queryString = keyword.QueryString
 		query.fields = keyword.Fields
 		queries = append(queries, query)
@@ -65,16 +65,16 @@ func (b ElasticSearchBackend) Compile(ir ir.BooleanQuery) ElasticSearchBooleanQu
 	return elasticSearchBooleanQuery
 }
 
-// TransformElasticsearchQuery is a wrapper for the traverseGroup function. This function should be used to transform
+// Representation is a wrapper for the traverseGroup function. This function should be used to transform
 // the Elasticsearch ir into a valid Elasticsearch query.
-func (q ElasticSearchBooleanQuery) TransformElasticsearchQuery() map[string]interface{} {
+func (q ElasticsearchBooleanQuery) Representation() interface{} {
 	return map[string]interface{}{
 		"query": q.traverseGroup(map[string]interface{}{}),
 	}
 }
 
 // traverseGroup recursively transforms the Elasticsearch ir into a valid Elasticsearch query representable in JSON.
-func (q ElasticSearchBooleanQuery) traverseGroup(node map[string]interface{}) map[string]interface{} {
+func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) map[string]interface{} {
 	// a group is a node in the tree
 	group := map[string]interface{}{}
 
@@ -86,6 +86,7 @@ func (q ElasticSearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 	if len(q.grouping) > 3 && q.grouping[0:3] == "adj" {
 		clauses := []interface{}{}
 		for _, child := range q.children {
+			child := child.(ElasticsearchBooleanQuery)
 			// Panic if we egt anything other than a should.
 			if child.grouping != "should" {
 				panic(errors.New(fmt.Sprintf("unsupported operator for slop `%v`", child.grouping)))
@@ -211,7 +212,7 @@ func (q ElasticSearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 		// And then the children.
 		for i := range q.children {
 			// Children are non-terminal so we descend down the tree.
-			groups[subQuery] = q.children[i].traverseGroup(map[string]interface{}{})
+			groups[subQuery] = q.children[i].(ElasticsearchBooleanQuery).traverseGroup(map[string]interface{}{})
 			subQuery++
 		}
 
@@ -225,7 +226,7 @@ func (q ElasticSearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 }
 
 // createAdjacentClause attempts to create an Elasticsearch version of the `adj` operator in Pubmed/Medline (slop).
-func (q ElasticSearchQuery) createAdjacentClause() []interface{} {
+func (q ElasticsearchQuery) createAdjacentClause() []interface{} {
 	innerClauses := []interface{}{}
 	if len(q.fields) != 1 {
 		panic(errors.New(fmt.Sprintf("query `%v` has too many fields (%v)", q.queryString, q.fields)))
@@ -257,19 +258,14 @@ func (q ElasticSearchQuery) createAdjacentClause() []interface{} {
 	return innerClauses
 }
 
-// Children returns the branches in the tree of a query.
-func (q ElasticSearchBooleanQuery) Children() []ElasticSearchBooleanQuery {
-	return q.children
-}
-
 // String creates a machine-readable JSON Elasticsearch query.
-func (q ElasticSearchBooleanQuery) String() string {
-	b, _ := json.Marshal(q.TransformElasticsearchQuery())
+func (q ElasticsearchBooleanQuery) String() string {
+	b, _ := json.Marshal(q.Representation())
 	return string(b)
 }
 
 // StringPretty creates a human-readable JSON Elasticsearch query.
-func (q ElasticSearchBooleanQuery) StringPretty() string {
-	b, _ := json.MarshalIndent(q.TransformElasticsearchQuery(), "", "    ")
+func (q ElasticsearchBooleanQuery) StringPretty() string {
+	b, _ := json.MarshalIndent(q.Representation(), "", "    ")
 	return string(b)
 }
