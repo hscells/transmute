@@ -8,16 +8,14 @@ import (
 	"os"
 	"io/ioutil"
 	"github.com/hscells/transmute/backend"
-	"fmt"
-	"github.com/hscells/transmute/lexer"
-	"github.com/hscells/transmute/ir"
 )
 
 type args struct {
-	Input   string `arg:"help:File containing a search strategy."`
-	Output  string `arg:"help:File to output the transformed query to."`
-	Parser  string `arg:"help:Which parser to use (medline)"`
-	Backend string `arg:"help:Which backend to use (ir/elasticsearch)."`
+	Input        string `arg:"help:File containing a search strategy."`
+	Output       string `arg:"help:File to output the transformed query to."`
+	Parser       string `arg:"help:Which parser to use"`
+	Backend      string `arg:"help:Which backend to use."`
+	FieldMapping string `arg:"help:Load a field mapping json file."`
 }
 
 func (args) Version() string {
@@ -37,35 +35,27 @@ func main() {
 	inputFile := os.Stdin
 	outputFile := os.Stdout
 
-	// Specify default values
-	args.Parser = "medline"
-	args.Backend = "elasticsearch"
+	pipeline := Pipeline{}
 
 	// Parse the args into the struct
 	arg.MustParse(&args)
-
-	// Make sure the backend exists
-	if args.Backend != "ir" && args.Backend != "elasticsearch" {
-		fmt.Println(fmt.Sprintf("%v is not a valid backend. See `transmute --help` for details.", args.Backend))
-		os.Exit(1)
-	}
 
 	// Grab the input file (if defaults to stdin).
 	if len(args.Input) > 0 {
 		// Load the query
 		fp, err := os.Open(args.Input)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		qb, err := ioutil.ReadAll(fp)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		query = string(qb)
 	} else {
 		data, err := ioutil.ReadAll(inputFile)
 		if err != nil {
-			log.Panicln(err)
+			log.Fatal(err)
 		}
 		query = string(data)
 	}
@@ -79,32 +69,60 @@ func main() {
 		}
 
 		if err != nil {
-			log.Panicln(err)
+			log.Fatal(err)
 		}
 	}
 
-	ast, err := lexer.Lex(query)
-	if err != nil {
-		panic(err)
-	}
-
-	var immediate ir.BooleanQuery
-	switch args.Backend {
-	case "medline":
-	default:
-		immediate = parser.NewMedlineParser().Parse(ast)
-	}
-
-	// Output the query
-	switch args.Backend {
-	case "ir":
-		// format the output
-		d, err := json.MarshalIndent(immediate, "", "    ")
+	if len(args.FieldMapping) > 0 {
+		// Load the query
+		fp, err := os.Open(args.Input)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
-		outputFile.Write(d)
-	case "elasticsearch":
-		outputFile.WriteString(backend.NewElasticsearchCompiler().Compile(immediate).StringPretty())
+		qb, err := ioutil.ReadAll(fp)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var fieldMapping map[string][]string
+		err = json.Unmarshal(qb, &fieldMapping)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pipeline.FieldMapping = fieldMapping
 	}
+
+	// The list of available parsers.
+	parsers := map[string]parser.QueryParser{
+		"medline": parser.NewMedlineParser(),
+	}
+
+	// The list of available back-ends.
+	compilers := map[string]backend.Compiler{
+		"elasticsearch": backend.NewElasticsearchCompiler(),
+		"ir": backend.NewIrBackend(),
+	}
+
+	// Grab the parser.
+	if p, ok := parsers[args.Parser]; ok {
+		pipeline.Parser = p
+	} else {
+		log.Fatalf("%v is not a valid parser", args.Parser)
+	}
+
+	// Grab the compiler.
+	if c, ok := compilers[args.Backend]; ok {
+		pipeline.Compiler = c
+	} else {
+		log.Fatalf("%v is not a valid backend", args.Backend)
+	}
+
+	// Execute the configured pipeline on the query.
+	compiledQuery, err := Execute(pipeline, query)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	outputFile.WriteString(compiledQuery.StringPretty())
+
 }

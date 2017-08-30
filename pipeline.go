@@ -8,12 +8,18 @@ import (
 
 // Pipeline contains the information needed to execute a full compilation.
 type Pipeline struct {
-	Parser parser.QueryParser
-	Compiler backend.Compiler
+	Parser       parser.QueryParser
+	Compiler     backend.Compiler
+	FieldMapping map[string][]string
 }
 
 // Execute takes a pipeline and a query and will fully lex, parse, and compile the query.
 func Execute(pipeline Pipeline, query string) (backend.BooleanQuery, error) {
+	// Set the field mapping on the parser if it is defined separately in the pipeline.
+	// Otherwise, the default field mapping will be used for the parser.
+	if pipeline.FieldMapping != nil {
+		pipeline.Parser.FieldMapping = pipeline.FieldMapping
+	}
 
 	// Lex.
 	ast, err := lexer.Lex(query)

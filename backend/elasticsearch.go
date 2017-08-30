@@ -9,9 +9,8 @@ import (
 	"github.com/hscells/transmute/ir"
 	"encoding/json"
 	"strings"
-	"github.com/pkg/errors"
-	"fmt"
 	"strconv"
+	"log"
 )
 
 type ElasticsearchQuery struct {
@@ -87,9 +86,9 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 		clauses := []interface{}{}
 		for _, child := range q.children {
 			child := child.(ElasticsearchBooleanQuery)
-			// Panic if we egt anything other than a should.
+			// Error if we get anything other than a should.
 			if child.grouping != "should" {
-				panic(errors.New(fmt.Sprintf("unsupported operator for slop `%v`", child.grouping)))
+				log.Fatalf("unsupported operator for slop `%v`", child.grouping)
 			}
 			// Create the clauses inside one side of the span
 			innerClauses := []interface{}{}
@@ -229,7 +228,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 func (q ElasticsearchQuery) createAdjacentClause() []interface{} {
 	innerClauses := []interface{}{}
 	if len(q.fields) != 1 {
-		panic(errors.New(fmt.Sprintf("query `%v` has too many fields (%v)", q.queryString, q.fields)))
+		log.Fatalf("query `%v` has too many fields (%v)", q.queryString, q.fields)
 	}
 
 	// Create the wildcard query.
