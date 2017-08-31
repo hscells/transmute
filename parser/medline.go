@@ -30,8 +30,10 @@ var MedlineFieldMapping = map[string][]string{
 
 var adjMatchRegexp, _ = regexp.Compile("^adj[0-9]*$")
 
+// MedlineTransformer is an implementation of a QueryTransformer in the parser package.
 type MedlineTransformer struct {}
 
+// TransformFields maps a string of fields into a slice of mapped fields.
 func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]string) []string {
 	parts := strings.Split(fields, ",")
 	mappedFields := []string{}
@@ -41,6 +43,7 @@ func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]
 	return mappedFields
 }
 
+// TransformNested implements the transformation of a nested query.
 func (p MedlineTransformer) TransformNested(query string, mapping map[string][]string) ir.BooleanQuery {
 	var fieldsString string
 	for i := len(query) - 1; i > 0; i-- {
@@ -61,6 +64,8 @@ func (p MedlineTransformer) TransformNested(query string, mapping map[string][]s
 	return p.ParseInfixKeywords(query, fields, mapping)
 }
 
+// TransformSingle implements the transformation of a single, stand-alone query. This is called from TransformNested
+// to transform the inner queries.
 func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
 	var queryString string
 	var fields []string
@@ -199,6 +204,8 @@ func (p MedlineTransformer) ConvertInfixToPrefix(infix []string) []string {
 	return result
 }
 
+// ParseInfixKeywords parses an infix expression containing keywords separated by operators into an infix expression,
+// and then into the immediate representation.
 func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, mapping map[string][]string) ir.BooleanQuery {
 	line += "\n"
 
