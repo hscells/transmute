@@ -10,10 +10,10 @@ import (
 // QueryTransformer must be implemented to parse queries.
 type QueryTransformer interface {
 	// TransformSingle transforms a single query string.
-	TransformSingle(query string) ir.Keyword
+	TransformSingle(query string, mapping map[string][]string) ir.Keyword
 
 	// TransformNested transforms a nested query - queries that start with a `(`.
-	TransformNested(query string) ir.BooleanQuery
+	TransformNested(query string, mapping map[string][]string) ir.BooleanQuery
 }
 
 // QueryParser represents the full implementation of a query parser.
@@ -29,7 +29,7 @@ type QueryParser struct {
 // TransformSingle functions defined by the Parser and the Field mapping to create an immediate representation tree.
 func (q QueryParser) Parse(ast lexer.Node) ir.BooleanQuery {
 	if ast.Children == nil && ast.Reference == 1 {
-		return q.Parser.TransformNested(ast.Value)
+		return q.Parser.TransformNested(ast.Value, q.FieldMapping)
 	}
 
 	var visit func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery
@@ -39,10 +39,10 @@ func (q QueryParser) Parse(ast lexer.Node) ir.BooleanQuery {
 			if len(child.Operator) == 0 {
 				// Nested query.
 				if child.Value[0] == '(' {
-					query.Children = append(query.Children, q.Parser.TransformNested(child.Value))
+					query.Children = append(query.Children, q.Parser.TransformNested(child.Value, q.FieldMapping))
 				} else {
 					// Regular line of a query.
-					query.Keywords = append(query.Keywords, q.Parser.TransformSingle(child.Value))
+					query.Keywords = append(query.Keywords, q.Parser.TransformSingle(child.Value, q.FieldMapping))
 				}
 			} else {
 				query.Children = append(query.Children, visit(child, ir.BooleanQuery{}))

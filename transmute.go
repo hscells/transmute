@@ -75,7 +75,7 @@ func main() {
 
 	if len(args.FieldMapping) > 0 {
 		// Load the query
-		fp, err := os.Open(args.Input)
+		fp, err := os.Open(args.FieldMapping)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -89,6 +89,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		if _, ok := fieldMapping["default"]; !ok {
+			log.Fatal("a `default` field must exist in the custom field mapping")
+		}
+
 		pipeline.FieldMapping = fieldMapping
 	}
 
@@ -122,6 +127,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println(pipeline.FieldMapping)
 
 	outputFile.WriteString(compiledQuery.StringPretty())
 

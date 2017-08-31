@@ -17,7 +17,7 @@ type Pipeline struct {
 func Execute(pipeline Pipeline, query string) (backend.BooleanQuery, error) {
 	// Set the field mapping on the parser if it is defined separately in the pipeline.
 	// Otherwise, the default field mapping will be used for the parser.
-	if pipeline.FieldMapping != nil {
+	if pipeline.FieldMapping != nil || len(pipeline.FieldMapping) > 0 {
 		pipeline.Parser.FieldMapping = pipeline.FieldMapping
 	}
 

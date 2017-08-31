@@ -24,23 +24,24 @@ var MedlineFieldMapping = map[string][]string{
 	"kf": {"mesh_headings"},
 	"sb": {"mesh_headings"},
 	"mh": {"mesh_headings"},
-	"pt": {"pubtype"},
+	"pt": {"pub_type"},
+	"default": {"abstract"},
 }
 
 var adjMatchRegexp, _ = regexp.Compile("^adj[0-9]*$")
 
-type MedlineParser struct{}
+type MedlineTransformer struct {}
 
-func (p MedlineParser) TransformFields(fields string) []string {
+func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]string) []string {
 	parts := strings.Split(fields, ",")
 	mappedFields := []string{}
 	for _, field := range parts {
-		mappedFields = append(mappedFields, MedlineFieldMapping[field]...)
+		mappedFields = append(mappedFields, mapping[field]...)
 	}
 	return mappedFields
 }
 
-func (p MedlineParser) TransformNested(query string) ir.BooleanQuery {
+func (p MedlineTransformer) TransformNested(query string, mapping map[string][]string) ir.BooleanQuery {
 	var fieldsString string
 	for i := len(query) - 1; i > 0; i-- {
 		if query[i] == ')' {
@@ -54,13 +55,13 @@ func (p MedlineParser) TransformNested(query string) ir.BooleanQuery {
 	fields := []string{}
 	fieldsString = strings.Replace(fieldsString, ".", "", -1)
 	for _, field := range strings.Split(fieldsString, ",") {
-		fields = append(fields, MedlineFieldMapping[field]...)
+		fields = append(fields, mapping[field]...)
 	}
 
-	return p.ParseInfixKeywords(query, fields)
+	return p.ParseInfixKeywords(query, fields, mapping)
 }
 
-func (p MedlineParser) TransformSingle(query string) ir.Keyword {
+func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
 	var queryString string
 	var fields []string
 	exploded := false
@@ -75,13 +76,13 @@ func (p MedlineParser) TransformSingle(query string) ir.Keyword {
 			queryString = query
 		}
 		queryString = strings.Replace(queryString, "/", "", -1)
-		fields = MedlineFieldMapping["sh"]
+		fields = mapping["sh"]
 	} else {
 		// Otherwise try to parse a regular looking query.
 		parts := strings.Split(query, ".")
 		if len(parts) == 3 {
 			queryString = parts[0]
-			fields = p.TransformFields(parts[1])
+			fields = p.TransformFields(parts[1], mapping)
 		} else {
 			queryString = query
 		}
@@ -89,7 +90,7 @@ func (p MedlineParser) TransformSingle(query string) ir.Keyword {
 
 	// Add a default field to the keyword if none have been defined
 	if len(fields) == 0 {
-		fields = MedlineFieldMapping["ab"]
+		fields = mapping["default"]
 	}
 
 	// medline uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
@@ -106,7 +107,7 @@ func (p MedlineParser) TransformSingle(query string) ir.Keyword {
 
 // transformPrefixGroupToQueryGroup transforms a prefix syntax tree into a query group. The new QueryGroup is built by
 // recursively navigating the syntax tree.
-func (p MedlineParser) TransformPrefixGroupToQueryGroup(prefix []string, queryGroup ir.BooleanQuery, fields []string) ([]string, ir.BooleanQuery) {
+func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, queryGroup ir.BooleanQuery, fields []string, mapping map[string][]string) ([]string, ir.BooleanQuery) {
 	//log.Println(queryGroup)
 	if len(prefix) == 0 {
 		return prefix, queryGroup
@@ -117,23 +118,23 @@ func (p MedlineParser) TransformPrefixGroupToQueryGroup(prefix []string, queryGr
 		queryGroup.Operator = token
 	} else if token == "(" {
 		var subGroup ir.BooleanQuery
-		prefix, subGroup = p.TransformPrefixGroupToQueryGroup(prefix[1:], ir.BooleanQuery{}, fields)
+		prefix, subGroup = p.TransformPrefixGroupToQueryGroup(prefix[1:], ir.BooleanQuery{}, fields, mapping)
 		queryGroup.Children = append(queryGroup.Children, subGroup)
 	} else if token == ")" {
 		return prefix, queryGroup
 	} else {
 		if len(token) > 0 {
-			k := p.TransformSingle(token)
+			k := p.TransformSingle(token, mapping)
 			k.Fields = fields
 			queryGroup.Keywords = append(queryGroup.Keywords, k)
 		}
 	}
-	return p.TransformPrefixGroupToQueryGroup(prefix[1:], queryGroup, fields)
+	return p.TransformPrefixGroupToQueryGroup(prefix[1:], queryGroup, fields, mapping)
 }
 
 // ConvertInfixToPrefix translates an infix grouping expression into a prefix expression. The way this is done is the
 // Shunting-yard algorithm (https://en.wikipedia.org/wiki/Shunting-yard_algorithm).
-func (p MedlineParser) ConvertInfixToPrefix(infix []string) []string {
+func (p MedlineTransformer) ConvertInfixToPrefix(infix []string) []string {
 	// The stack contains some intermediate values
 	stack := []string{}
 	// The result contains the actual expression
@@ -198,7 +199,7 @@ func (p MedlineParser) ConvertInfixToPrefix(infix []string) []string {
 	return result
 }
 
-func (p MedlineParser) ParseInfixKeywords(line string, fields []string) ir.BooleanQuery {
+func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, mapping map[string][]string) ir.BooleanQuery {
 	line += "\n"
 
 	stack := []string{}
@@ -255,7 +256,7 @@ func (p MedlineParser) ParseInfixKeywords(line string, fields []string) ir.Boole
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
 		prefix = prefix[1:len(prefix)-1]
 	}
-	_, queryGroup := p.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, fields)
+	_, queryGroup := p.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, fields, mapping)
 	return queryGroup
 }
 
@@ -290,7 +291,7 @@ func ReversePreservingCombiningCharacters(s string) string {
 }
 
 // IsOperator tests to see if a string is a valid PubMed/Medline operator.
-func (p MedlineParser) IsOperator(s string) bool {
+func (p MedlineTransformer) IsOperator(s string) bool {
 	return s == "or" ||
 		s == "and" ||
 		s == "not" ||
@@ -298,5 +299,5 @@ func (p MedlineParser) IsOperator(s string) bool {
 }
 
 func NewMedlineParser() QueryParser {
-	return QueryParser{FieldMapping: MedlineFieldMapping, Parser: MedlineParser{}}
+	return QueryParser{FieldMapping: MedlineFieldMapping, Parser: MedlineTransformer{}}
 }
