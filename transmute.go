@@ -100,6 +100,7 @@ func main() {
 	// The list of available parsers.
 	parsers := map[string]parser.QueryParser{
 		"medline": parser.NewMedlineParser(),
+		"pubmed": parser.NewPubMedParser(),
 	}
 
 	// The list of available back-ends.
@@ -127,8 +128,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	log.Println(pipeline.FieldMapping)
 
 	outputFile.WriteString(compiledQuery.StringPretty())
 
