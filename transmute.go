@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/alexflint/go-arg"
-	"log"
 	"encoding/json"
-	"github.com/hscells/transmute/parser"
-	"os"
-	"io/ioutil"
+	"github.com/alexflint/go-arg"
 	"github.com/hscells/transmute/backend"
+	"github.com/hscells/transmute/parser"
+	"github.com/hscells/transmute/pipe"
+	"io/ioutil"
+	"log"
+	"os"
 )
 
 type args struct {
@@ -35,7 +36,7 @@ func main() {
 	inputFile := os.Stdin
 	outputFile := os.Stdout
 
-	pipeline := Pipeline{}
+	pipeline := pipe.Pipeline{}
 
 	// Parse the args into the struct
 	arg.MustParse(&args)
@@ -100,13 +101,13 @@ func main() {
 	// The list of available parsers.
 	parsers := map[string]parser.QueryParser{
 		"medline": parser.NewMedlineParser(),
-		"pubmed": parser.NewPubMedParser(),
+		"pubmed":  parser.NewPubMedParser(),
 	}
 
 	// The list of available back-ends.
 	compilers := map[string]backend.Compiler{
 		"elasticsearch": backend.NewElasticsearchCompiler(),
-		"ir": backend.NewIrBackend(),
+		"ir":            backend.NewIrBackend(),
 	}
 
 	// Grab the parser.
@@ -124,7 +125,7 @@ func main() {
 	}
 
 	// Execute the configured pipeline on the query.
-	compiledQuery, err := Execute(pipeline, query)
+	compiledQuery, err := pipeline.Execute(query)
 	if err != nil {
 		log.Fatal(err)
 	}

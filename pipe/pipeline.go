@@ -1,9 +1,9 @@
-package main
+package pipe
 
 import (
-	"github.com/hscells/transmute/parser"
 	"github.com/hscells/transmute/backend"
 	"github.com/hscells/transmute/lexer"
+	"github.com/hscells/transmute/parser"
 )
 
 // Pipeline contains the information needed to execute a full compilation.
@@ -14,11 +14,11 @@ type Pipeline struct {
 }
 
 // Execute takes a pipeline and a query and will fully lex, parse, and compile the query.
-func Execute(pipeline Pipeline, query string) (backend.BooleanQuery, error) {
+func (p Pipeline) Execute(query string) (backend.BooleanQuery, error) {
 	// Set the field mapping on the parser if it is defined separately in the pipeline.
 	// Otherwise, the default field mapping will be used for the parser.
-	if pipeline.FieldMapping != nil || len(pipeline.FieldMapping) > 0 {
-		pipeline.Parser.FieldMapping = pipeline.FieldMapping
+	if p.FieldMapping != nil || len(p.FieldMapping) > 0 {
+		p.Parser.FieldMapping = p.FieldMapping
 	}
 
 	// Lex.
@@ -28,9 +28,9 @@ func Execute(pipeline Pipeline, query string) (backend.BooleanQuery, error) {
 	}
 
 	// Parse.
-	boolQuery := pipeline.Parser.Parse(ast)
+	boolQuery := p.Parser.Parse(ast)
 
 	// Compile.
-	return pipeline.Compiler.Compile(boolQuery), nil
+	return p.Compiler.Compile(boolQuery), nil
 
 }
