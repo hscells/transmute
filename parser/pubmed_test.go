@@ -3,6 +3,9 @@ package parser
 import (
 	"github.com/hscells/transmute/lexer"
 	"testing"
+	"github.com/hscells/transmute/pipeline"
+	"github.com/hscells/transmute/backend"
+	"go/parser"
 )
 
 var (

@@ -5,7 +5,7 @@ import (
 	"github.com/alexflint/go-arg"
 	"github.com/hscells/transmute/backend"
 	"github.com/hscells/transmute/parser"
-	"github.com/hscells/transmute/pipe"
+	"github.com/hscells/transmute/pipeline"
 	"io/ioutil"
 	"log"
 	"os"
@@ -36,7 +36,7 @@ func main() {
 	inputFile := os.Stdin
 	outputFile := os.Stdout
 
-	pipeline := pipe.Pipeline{}
+	transmutePipeline := pipeline.TransmutePipeline{}
 
 	// Parse the args into the struct
 	arg.MustParse(&args)
@@ -95,7 +95,7 @@ func main() {
 			log.Fatal("a `default` field must exist in the custom field mapping")
 		}
 
-		pipeline.FieldMapping = fieldMapping
+		transmutePipeline.Options.FieldMapping = fieldMapping
 	}
 
 	// The list of available parsers.
@@ -112,20 +112,29 @@ func main() {
 
 	// Grab the parser.
 	if p, ok := parsers[args.Parser]; ok {
-		pipeline.Parser = p
+		transmutePipeline.Parser = p
+		if args.Parser == "medline" {
+			transmutePipeline.Options.LexOptions.FormatParenthesis = false
+		} else {
+			transmutePipeline.Options.LexOptions.FormatParenthesis = true
+		}
 	} else {
 		log.Fatalf("%v is not a valid parser", args.Parser)
 	}
 
 	// Grab the compiler.
 	if c, ok := compilers[args.Backend]; ok {
-		pipeline.Compiler = c
+		transmutePipeline.Compiler = c
 	} else {
 		log.Fatalf("%v is not a valid backend", args.Backend)
 	}
 
-	// Execute the configured pipeline on the query.
-	compiledQuery, err := pipeline.Execute(query)
+	transmutePipeline.Options = pipeline.TransmutePipelineOptions{
+		RequiresLexing: true,
+	}
+
+	// Execute the configured transmutePipeline on the query.
+	compiledQuery, err := transmutePipeline.Execute(query)
 	if err != nil {
 		log.Fatal(err)
 	}

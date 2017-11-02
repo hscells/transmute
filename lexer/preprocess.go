@@ -7,7 +7,13 @@ import (
 
 // PreProcess attempts to remove the starting numbers from a query and will trim each line in a query if there are any
 // additional, unnecessary spaces. The output should be a fairly clean search strategy.
-func PreProcess(query string) string {
+func PreProcess(query string, options LexOptions) string {
+	// Format the parenthesis
+	if options.FormatParenthesis {
+		query = strings.Replace(query, ")", " ) ", -1)
+		query = strings.Replace(query, "(", " ( ", -1)
+	}
+
 	// Identify queries as single line queries or search strategies without numbers.
 	l := strings.TrimSpace(strings.Split(query, "\n")[0])
 	if !strings.Contains(l, " ") {

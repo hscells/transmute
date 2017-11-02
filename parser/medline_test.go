@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"testing"
 	"github.com/hscells/transmute/lexer"
+	"testing"
 )
 
 var (
@@ -48,8 +48,6 @@ func TestBooleanQuery_Fields(t *testing.T) {
 		t.Fatalf("Expected %v fields, got %v", expected, got)
 	}
 }
-
-
 
 func TestBooleanQuery_FieldCount(t *testing.T) {
 	ast, err := lexer.Lex(medlineQueryString)
