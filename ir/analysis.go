@@ -26,7 +26,7 @@ func (b BooleanQuery) Fields() (f []string) {
 func (b BooleanQuery) FieldCount() (c map[string]int) {
 	c = map[string]int{}
 	for _, field := range b.Fields() {
-		c[field] += 1
+		c[field]++
 	}
 	return
 }
