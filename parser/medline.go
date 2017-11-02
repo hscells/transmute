@@ -2,10 +2,11 @@ package parser
 
 import (
 	"github.com/hscells/transmute/ir"
-	"strings"
-	"unicode/utf8"
-	"unicode"
 	"regexp"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+	"log"
 )
 
 var MedlineFieldMapping = map[string][]string{
@@ -25,6 +26,7 @@ var MedlineFieldMapping = map[string][]string{
 	"sb":      {"mesh_headings"},
 	"mh":      {"mesh_headings"},
 	"pt":      {"pub_type"},
+	"au":      {"author"},
 	"default": {"abstract"},
 }
 
@@ -61,6 +63,11 @@ func (p MedlineTransformer) TransformNested(query string, mapping map[string][]s
 		fields = append(fields, mapping[field]...)
 	}
 
+	// Add a default field to the keyword if none have been defined
+	if len(fields) == 0 {
+		fields = mapping["default"]
+	}
+
 	return p.ParseInfixKeywords(query, fields, mapping)
 }
 
@@ -93,14 +100,11 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 		}
 	}
 
-	// Add a default field to the keyword if none have been defined
-	if len(fields) == 0 {
-		fields = mapping["default"]
-	}
-
 	// medline uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
 	// TODO is there anything in Elasticsearch to do this?
 	queryString = strings.Replace(queryString, "$", "*", -1)
+
+	queryString = strings.TrimSpace(queryString)
 
 	return ir.Keyword{
 		QueryString: queryString,
@@ -130,7 +134,13 @@ func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, qu
 	} else {
 		if len(token) > 0 {
 			k := p.TransformSingle(token, mapping)
-			k.Fields = fields
+			// Add a default field to the keyword if none have been defined
+			if len(k.Fields) == 0 && len(fields) > 0 {
+				k.Fields = fields
+			} else if len(k.Fields) == 0 && len(fields) == 0 {
+				log.Printf("no inner or outer fields are defined for nested query `%v`, using default (%v)", token, mapping["default"])
+				k.Fields = mapping["default"]
+			}
 			queryGroup.Keywords = append(queryGroup.Keywords, k)
 		}
 	}
@@ -241,7 +251,7 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 		} else if char == ')' {
 			depth--
 			if len(keyword) > 0 || len(currentToken) > 0 {
-				stack = append(stack, strings.TrimSpace(keyword+" "+currentToken))
+				stack = append(stack, strings.TrimSpace(keyword+" "+previousToken+" "+currentToken))
 				keyword = ""
 				currentToken = ""
 			}
@@ -261,7 +271,7 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 	}
 	prefix := p.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1:len(prefix)-1]
+		prefix = prefix[1: len(prefix)-1]
 	}
 	_, queryGroup := p.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, fields, mapping)
 	return queryGroup

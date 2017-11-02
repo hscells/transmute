@@ -2,14 +2,17 @@
 package lexer
 
 import (
-	"strings"
 	"regexp"
 	"strconv"
+	"strings"
+	"fmt"
+	"log"
 )
 
 var (
 	numberRegex, _ = regexp.Compile("^[0-9]+$")
 	prefixRegex, _ = regexp.Compile("^(or|and|not|OR|AND|NOT)/[0-9]+-[0-9]+$")
+	namedRegex, _  = regexp.Compile("^(or|and|not|OR|AND|NOT)/[0-9]+,[0-9]+$")
 )
 
 // Node contains the encoding of the query as a tree.
@@ -18,6 +21,11 @@ type Node struct {
 	Reference int
 	Operator  string
 	Children  []Node
+}
+
+// LexOptions allows for configuration of how the query string is lexed.
+type LexOptions struct {
+	FormatParenthesis bool
 }
 
 // ProcessInfixOperators replaces the references in an infix query with the actual query string.
@@ -64,6 +72,18 @@ func ProcessPrefixOperators(queries map[int]string, operator string) (map[string
 	return map[string]map[int]string{op: extracted}, nil
 }
 
+// ProcessNamedOperators replaces the references in a prefix query with the actual query string.
+func ProcessNamedOperators(queries map[int]string, operator string) (map[string]map[int]string, error) {
+	// Sort out the parts of the string.
+	parts := strings.Split(operator, "/")
+	op := parts[0]
+	numbers := parts[1]
+	numberParts := strings.Split(numbers, ",")
+
+	infix := strings.Join(numberParts, fmt.Sprintf(" %v ", op))
+	return ProcessInfixOperators(queries, infix)
+}
+
 // ExpandQuery takes a query that has been processed and expands it into a tree.
 func ExpandQuery(query map[int]map[string]map[int]string) Node {
 	var bottomReference int
@@ -96,13 +116,17 @@ func ExpandQuery(query map[int]map[string]map[int]string) Node {
 
 	// This recursive function builds the tree recursively by adding nodes top down.
 	var expand func(node Node, query map[int]map[string]map[int]string) Node
+	var recursionDepth int
 	expand = func(node Node, query map[int]map[string]map[int]string) Node {
+		recursionDepth++
 		for k, v := range query[node.Reference][node.Operator] {
 			// If we find a query in the top-level, process that.
 			if innerQuery, ok := query[k]; ok {
 				for operator := range innerQuery {
 					n := Node{Reference: k, Operator: operator}
-					//n.Children = append(n.Children, )
+					if recursionDepth > 10000 {
+						log.Fatalf("unable to parse, found a possible recursive rule on line %v", bottomReference)
+					}
 					node.Children = append(node.Children, expand(n, query))
 				}
 			} else {
@@ -120,8 +144,8 @@ func ExpandQuery(query map[int]map[string]map[int]string) Node {
 
 // Lex creates the abstract syntax tree for the query. It will preprocess the query to try to normalise it. This
 // function only creates the tree; it does not attempt to parse the individual lines in the query.
-func Lex(query string) (Node, error) {
-	query = PreProcess(query)
+func Lex(query string, options LexOptions) (Node, error) {
+	query = PreProcess(query, options)
 
 	// reference -> operator -> reference -> query_string
 	depth1Query := map[int]map[string]map[int]string{}
@@ -141,6 +165,12 @@ func Lex(query string) (Node, error) {
 		} else if prefixRegex.MatchString(line) {
 			// Assume we are looking at `OP/N-N
 			depth1Query[reference+1], err = ProcessPrefixOperators(queries, line)
+			if err != nil {
+				return Node{}, err
+			}
+		} else if namedRegex.MatchString(line) {
+			// Assume we are looking at `OP/N,N
+			depth1Query[reference+1], err = ProcessNamedOperators(queries, line)
 			if err != nil {
 				return Node{}, err
 			}

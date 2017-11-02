@@ -3,8 +3,8 @@
 package parser
 
 import (
-	"github.com/hscells/transmute/lexer"
 	"github.com/hscells/transmute/ir"
+	"github.com/hscells/transmute/lexer"
 )
 
 // QueryTransformer must be implemented to parse queries.

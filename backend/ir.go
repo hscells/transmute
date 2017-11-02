@@ -1,8 +1,8 @@
 package backend
 
 import (
-	"github.com/hscells/transmute/ir"
 	"encoding/json"
+	"github.com/hscells/transmute/ir"
 )
 
 // IrQuery is just a wrapper for a boolean query in immediate representation.

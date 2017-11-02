@@ -1,6 +1,8 @@
 # transmute
 
 [![GoDoc](https://godoc.org/github.com/hscells/transmute?status.svg)](https://godoc.org/github.com/hscells/transmute)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hscells/transmute)](https://goreportcard.com/report/github.com/hscells/transmute)
+[![gocover](http://gocover.io/_badge/github.com/hscells/transmute)](https://gocover.io/github.com/hscells/transmute)
 
 _PubMed/Medline Query Transpiler_
 
@@ -26,7 +28,8 @@ An example of a Medline and Pubmed query are:
 ```
 
 Both are valid Pubmed and Medline search strategies reported in real systematic reviews; transmute can currently
-transform only Medline queries. PubMed queries will be implemented in the near future.git
+transform both Medline and PubMed queries. An example API usage by constructing a pipeline and executing it is shown in
+the next section.
 
 ## API Usage
 
@@ -38,11 +41,10 @@ query := `1. MMSE*.ti,ab.
 5. \"mini mental stat*\".ti,ab.
 6. or/1-5`
 
-pipeline := transmute.Pipeline{
-    Compiler: transmute.backend.NewElasticsearchCompiler(),
-    Parser: transmute.parser.NewMedlineParser(),
-}
-dsl, err := transmute.Execute(pipeline, query)
+p := transmute.pipeline.NewPipeline(transmute.parser.NewMedlineParser(),
+                                    transmute.backend.NewElasticsearchCompiler(),
+                                    transmute.pipeline.TransmutePipelineOptions{RequiresLexing: true})
+dsl, err := p.Execute(query)
 if err != nil {
     panic(err)
 }

@@ -6,11 +6,11 @@
 package backend
 
 import (
-	"github.com/hscells/transmute/ir"
 	"encoding/json"
-	"strings"
-	"strconv"
+	"github.com/hscells/transmute/ir"
 	"log"
+	"strconv"
+	"strings"
 )
 
 type ElasticsearchQuery struct {
@@ -58,6 +58,10 @@ func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
 		elasticSearchBooleanQuery.grouping = "filter"
 	default:
 		elasticSearchBooleanQuery.grouping = ir.Operator
+	}
+
+	if len(elasticSearchBooleanQuery.grouping) == 0 {
+		log.Fatalln("no operator was defined for an Elasticsearch query")
 	}
 
 	elasticSearchBooleanQuery.queries = queries
@@ -202,6 +206,8 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 						},
 					}
 				}
+			} else {
+				log.Fatalf("a query `%v` did not contain any fields", queryString)
 			}
 
 			groups[subQuery] = query
@@ -228,7 +234,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 func (q ElasticsearchQuery) createAdjacentClause() []interface{} {
 	innerClauses := []interface{}{}
 	if len(q.fields) != 1 {
-		log.Fatalf("query `%v` has too many fields (%v)", q.queryString, q.fields)
+		log.Fatalf("query `%v` has too many fields (%v), this is a limitation of the Elasticsearch slop query", q.queryString, q.fields)
 	}
 
 	// Create the wildcard query.

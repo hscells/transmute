@@ -2,9 +2,9 @@ package parser
 
 import (
 	"github.com/hscells/transmute/ir"
+	"log"
 	"strings"
 	"unicode"
-	"log"
 )
 
 type PubMedTransformer struct{}
@@ -13,6 +13,8 @@ var PubMedFieldMapping = map[string][]string{
 	"Mesh":           {"mesh_headings"},
 	"mesh":           {"mesh_headings"},
 	"MeSH":           {"mesh_headings"},
+	"MESH":           {"mesh_headings"},
+	"MeSH Terms":     {"mesh_headings"},
 	"Title/Abstract": {"title", "abstract"},
 	"Title":          {"title"},
 	"Abstract":       {"abstract"},
@@ -58,12 +60,15 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 
 	// Add a default field to the keyword if none have been defined
 	if len(fields) == 0 {
+		log.Printf("using default field (%v) since %v has no fields", mapping["default"], query)
 		fields = mapping["default"]
 	}
 
 	// medline uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
 	// TODO is there anything in Elasticsearch to do this? - and by `this` I mean single character wildcards.
 	queryString = strings.Replace(queryString, "$", "*", -1)
+
+	queryString = strings.TrimSpace(queryString)
 
 	return ir.Keyword{
 		QueryString: queryString,
@@ -137,7 +142,7 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 		} else if char == ')' {
 			depth--
 			if len(keyword) > 0 || len(currentToken) > 0 {
-				stack = append(stack, strings.TrimSpace(keyword+" "+currentToken))
+				stack = append(stack, strings.TrimSpace(keyword+" "+previousToken+" "+currentToken))
 				keyword = ""
 				currentToken = ""
 			}
@@ -157,9 +162,8 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 	}
 	prefix := t.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1:len(prefix)-1]
+		prefix = prefix[1: len(prefix)-1]
 	}
-	log.Println(prefix)
 	_, queryGroup := t.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, mapping)
 	return queryGroup
 }
