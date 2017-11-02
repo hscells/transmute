@@ -9,29 +9,29 @@ import (
 )
 
 var MedlineFieldMapping = map[string][]string{
-	"mp": {"mesh_headings"},
-	"af": {"title", "abstract", "mesh_headings"},
-	"tw": {"title", "abstract"},
-	"nm": {"abstract", "mesh_headings"},
-	"ab": {"abstract"},
-	"ti": {"title"},
-	"ot": {"title"},
-	"sh": {"mesh_headings"},
-	"px": {"mesh_headings"},
-	"rs": {"mesh_headings"},
-	"fs": {"mesh_headings"},
-	"rn": {"mesh_headings"},
-	"kf": {"mesh_headings"},
-	"sb": {"mesh_headings"},
-	"mh": {"mesh_headings"},
-	"pt": {"pub_type"},
+	"mp":      {"mesh_headings"},
+	"af":      {"title", "abstract", "mesh_headings"},
+	"tw":      {"title", "abstract"},
+	"nm":      {"abstract", "mesh_headings"},
+	"ab":      {"abstract"},
+	"ti":      {"title"},
+	"ot":      {"title"},
+	"sh":      {"mesh_headings"},
+	"px":      {"mesh_headings"},
+	"rs":      {"mesh_headings"},
+	"fs":      {"mesh_headings"},
+	"rn":      {"mesh_headings"},
+	"kf":      {"mesh_headings"},
+	"sb":      {"mesh_headings"},
+	"mh":      {"mesh_headings"},
+	"pt":      {"pub_type"},
 	"default": {"abstract"},
 }
 
 var adjMatchRegexp, _ = regexp.Compile("^adj[0-9]*$")
 
 // MedlineTransformer is an implementation of a QueryTransformer in the parser package.
-type MedlineTransformer struct {}
+type MedlineTransformer struct{}
 
 // TransformFields maps a string of fields into a slice of mapped fields.
 func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]string) []string {
