@@ -36,7 +36,10 @@ func (q CommonQueryRepresentationQuery) StringPretty() string {
 func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) BooleanQuery {
 	children := []cqr.CommonQueryRepresentation{}
 	for _, keyword := range q.Keywords {
-		children = append(children, cqr.NewKeyword(keyword.QueryString, keyword.Fields...))
+		k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
+			SetOption("exploded", keyword.Exploded).
+			SetOption("truncated", keyword.Truncated)
+		children = append(children, k)
 	}
 	for _, child := range q.Children {
 		subChildren := []cqr.CommonQueryRepresentation{}
@@ -45,7 +48,10 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) BooleanQuer
 			subChildren = append(subChildren, cqrSub)
 		}
 		for _, keyword := range child.Keywords {
-			subChildren = append(subChildren, cqr.NewKeyword(keyword.QueryString, keyword.Fields...))
+			k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
+				SetOption("exploded", keyword.Exploded).
+				SetOption("truncated", keyword.Truncated)
+			subChildren = append(subChildren, k)
 		}
 		children = append(children, cqr.NewBooleanQuery(child.Operator, subChildren))
 	}
