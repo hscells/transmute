@@ -108,6 +108,7 @@ func main() {
 	compilers := map[string]backend.Compiler{
 		"elasticsearch": backend.NewElasticsearchCompiler(),
 		"ir":            backend.NewIrBackend(),
+		"cqr":            backend.NewCQRBackend(),
 	}
 
 	// Grab the parser.
