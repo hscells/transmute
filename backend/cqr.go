@@ -1,8 +1,8 @@
 package backend
 
 import (
-	"github.com/hscells/cqr"
 	"encoding/json"
+	"github.com/hscells/cqr"
 	"github.com/hscells/transmute/ir"
 )
 
@@ -12,7 +12,7 @@ type CommonQueryRepresentationQuery struct {
 }
 
 // CommonQueryRepresentationBackend is the backend for compiling transmute ir into CQR.
-type CommonQueryRepresentationBackend struct {}
+type CommonQueryRepresentationBackend struct{}
 
 // Representation returns the CQR.
 func (q CommonQueryRepresentationQuery) Representation() interface{} {

@@ -2,11 +2,11 @@ package parser
 
 import (
 	"github.com/hscells/transmute/ir"
+	"log"
 	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-	"log"
 )
 
 var MedlineFieldMapping = map[string][]string{
@@ -271,7 +271,7 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 	}
 	prefix := p.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1: len(prefix)-1]
+		prefix = prefix[1 : len(prefix)-1]
 	}
 	_, queryGroup := p.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, fields, mapping)
 	return queryGroup

@@ -48,7 +48,7 @@ func (p TransmutePipeline) Execute(query string) (backend.BooleanQuery, error) {
 	} else {
 		ast = lexer.Node{
 			Value:     query,
-			Children:  []lexer.Node{},
+			Children:  nil,
 			Operator:  "",
 			Reference: 1,
 		}

@@ -16,9 +16,9 @@ type Keyword struct {
 // to a query. This means that there is no ambiguity to a query.
 type BooleanQuery struct {
 	// A boolean operator (e.g. "and", "or", "not")
-	Operator string         `json:"operator"`
+	Operator string `json:"operator"`
 	// A list of Keywords that appear as queries grouped by the operator
-	Keywords []Keyword      `json:"keywords"`
+	Keywords []Keyword `json:"keywords"`
 	// Any sub-queries, or children of the current query
 	Children []BooleanQuery `json:"children"`
 }

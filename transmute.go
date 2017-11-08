@@ -102,13 +102,14 @@ func main() {
 	parsers := map[string]parser.QueryParser{
 		"medline": parser.NewMedlineParser(),
 		"pubmed":  parser.NewPubMedParser(),
+		"cqr":     parser.NewCQRParser(),
 	}
 
 	// The list of available back-ends.
 	compilers := map[string]backend.Compiler{
 		"elasticsearch": backend.NewElasticsearchCompiler(),
 		"ir":            backend.NewIrBackend(),
-		"cqr":            backend.NewCQRBackend(),
+		"cqr":           backend.NewCQRBackend(),
 	}
 
 	// Grab the parser.
@@ -130,8 +131,14 @@ func main() {
 		log.Fatalf("%v is not a valid backend", args.Backend)
 	}
 
-	transmutePipeline.Options = pipeline.TransmutePipelineOptions{
-		RequiresLexing: true,
+	if args.Parser != "cqr" {
+		transmutePipeline.Options = pipeline.TransmutePipelineOptions{
+			RequiresLexing: true,
+		}
+	} else {
+		transmutePipeline.Options = pipeline.TransmutePipelineOptions{
+			RequiresLexing: false,
+		}
 	}
 
 	// Execute the configured transmutePipeline on the query.

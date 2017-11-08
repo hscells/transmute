@@ -13,10 +13,11 @@ var (
 5. SHS.mp.
 6. OSAHS.mp.
 7. or/1-6`
+	lexOptionsMedline = lexer.LexOptions{FormatParenthesis: false}
 )
 
 func TestBooleanQuery_Terms(t *testing.T) {
-	ast, err := lexer.Lex(medlineQueryString)
+	ast, err := lexer.Lex(medlineQueryString, lexOptionsMedline)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestBooleanQuery_Terms(t *testing.T) {
 }
 
 func TestBooleanQuery_Fields(t *testing.T) {
-	ast, err := lexer.Lex(medlineQueryString)
+	ast, err := lexer.Lex(medlineQueryString, lexOptionsMedline)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +51,7 @@ func TestBooleanQuery_Fields(t *testing.T) {
 }
 
 func TestBooleanQuery_FieldCount(t *testing.T) {
-	ast, err := lexer.Lex(medlineQueryString)
+	ast, err := lexer.Lex(medlineQueryString, lexOptionsMedline)
 	if err != nil {
 		t.Fatal(err)
 	}

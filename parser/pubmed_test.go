@@ -3,17 +3,15 @@ package parser
 import (
 	"github.com/hscells/transmute/lexer"
 	"testing"
-	"github.com/hscells/transmute/pipeline"
-	"github.com/hscells/transmute/backend"
-	"go/parser"
 )
 
 var (
 	pubmedQueryString = `(((\"Contraceptive Agents, Female\"[Mesh] OR \"Contraceptive Devices, Female\"[Mesh] OR contracept*[tiab]) AND (\"Body Weight\"[Mesh] OR weight[tiab] OR \"Body Mass Index\"[Mesh])) NOT (cancer*[ti] OR polycystic [ti] OR exercise [ti] OR physical activity[ti] OR postmenopaus*[ti]))`
+	lexOptionsPubMed  = lexer.LexOptions{FormatParenthesis: true}
 )
 
 func TestPubMed_BooleanQuery_Terms(t *testing.T) {
-	ast, err := lexer.Lex(pubmedQueryString)
+	ast, err := lexer.Lex(pubmedQueryString, lexOptionsPubMed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +28,7 @@ func TestPubMed_BooleanQuery_Terms(t *testing.T) {
 }
 
 func TestPubMed_BooleanQuery_Fields(t *testing.T) {
-	ast, err := lexer.Lex(pubmedQueryString)
+	ast, err := lexer.Lex(pubmedQueryString, lexOptionsPubMed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +45,7 @@ func TestPubMed_BooleanQuery_Fields(t *testing.T) {
 }
 
 func TestPubMed_BooleanQuery_FieldCount(t *testing.T) {
-	ast, err := lexer.Lex(pubmedQueryString)
+	ast, err := lexer.Lex(pubmedQueryString, lexOptionsPubMed)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -162,7 +162,7 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 	}
 	prefix := t.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1: len(prefix)-1]
+		prefix = prefix[1 : len(prefix)-1]
 	}
 	_, queryGroup := t.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, mapping)
 	return queryGroup
