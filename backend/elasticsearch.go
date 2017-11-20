@@ -86,18 +86,18 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 	var groups []interface{} = make([]interface{}, len(q.queries)+len(q.children))
 	subQuery := 0
 
-	if len(q.grouping) > 3 && q.grouping[0:3] == "adj" {
+	if q.grouping[0:3] == "adj" {
 		clauses := []interface{}{}
 		for _, child := range q.children {
 			child := child.(ElasticsearchBooleanQuery)
 			// Error if we get anything other than a should.
 			if child.grouping != "should" {
-				log.Fatalf("unsupported operator for slop `%v`", child.grouping)
+				log.Fatalf("unsupported operator for slop `%v`\noffending query:\n%v", child.grouping, child.StringPretty())
 			}
 			// Create the clauses inside one side of the span
 			innerClauses := []interface{}{}
 			for _, query := range child.queries {
-				innerClauses = append(innerClauses, query.createAdjacentClause())
+				innerClauses = append(innerClauses, query.createAdjacentClause()...)
 			}
 			// Nest the inner clauses inside a span_or.
 			clause := map[string]interface{}{
@@ -109,26 +109,33 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 			// Add this clause to the outer most span_near.
 			clauses = append(clauses, clause)
 		}
-
 		innerClauses := []interface{}{}
 		for _, query := range q.queries {
-			innerClauses = append(innerClauses, query.createAdjacentClause())
+			innerClauses = append(innerClauses, query.createAdjacentClause()...)
 		}
-		// Nest the inner clauses inside a span_or.
-		clause := map[string]interface{}{
-			"span_or": map[string]interface{}{
-				"clauses": innerClauses,
-			},
-		}
+		if len(innerClauses) > 0 {
+			// Nest the inner clauses inside a span_or.
+			clause := map[string]interface{}{
+				"span_or": map[string]interface{}{
+					"clauses": innerClauses,
+				},
+			}
 
-		// Add this clause to the outer most span_near.
-		clauses = append(clauses, clause)
+			// Add this clause to the outer most span_near.
+			clauses = append(clauses, clause)
+		}
 
 		// Extract the size of the adjacency (slop size)
-		slopString := strings.Replace(q.grouping, "adj", "", -1)
-		slopSize, err := strconv.Atoi(slopString)
-		if err != nil {
-			panic(err)
+		var slopSize int
+		if len(q.grouping) > 3 {
+			slopString := strings.Replace(q.grouping, "adj", "", -1)
+			var err error
+			slopSize, err = strconv.Atoi(slopString)
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			slopSize = 1
 		}
 
 		// Add both sides of the adjacency to the span.
@@ -253,7 +260,7 @@ func (q ElasticsearchQuery) createAdjacentClause() []interface{} {
 		innerClauses = append(innerClauses, map[string]interface{}{
 			"span_multi": map[string]interface{}{
 				"match": map[string]interface{}{
-					"term": map[string]interface{}{
+					"prefix": map[string]interface{}{
 						q.fields[0]: q.queryString,
 					},
 				},

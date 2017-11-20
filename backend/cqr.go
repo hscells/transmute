@@ -63,3 +63,7 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) BooleanQuer
 func NewCQRBackend() CommonQueryRepresentationBackend {
 	return CommonQueryRepresentationBackend{}
 }
+
+func NewCQRQuery(query cqr.CommonQueryRepresentation) CommonQueryRepresentationQuery {
+	return CommonQueryRepresentationQuery{repr: query}
+}
