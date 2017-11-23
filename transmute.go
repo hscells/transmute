@@ -110,6 +110,7 @@ func main() {
 		"elasticsearch": backend.NewElasticsearchCompiler(),
 		"ir":            backend.NewIrBackend(),
 		"cqr":           backend.NewCQRBackend(),
+		"terrier":       backend.NewTerrierBackend(),
 	}
 
 	// Grab the parser.

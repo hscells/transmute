@@ -106,6 +106,11 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 
 	queryString = strings.TrimSpace(queryString)
 
+	// Add a default field to the keyword if none have been defined
+	if len(fields) == 0 {
+		fields = mapping["default"]
+	}
+
 	return ir.Keyword{
 		QueryString: queryString,
 		Fields:      fields,
