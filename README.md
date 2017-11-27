@@ -1,3 +1,5 @@
+<img height="200px" src="gopher.png" alt="gopher" align="right"/>
+
 # transmute
 
 [![GoDoc](https://godoc.org/github.com/hscells/transmute?status.svg)](https://godoc.org/github.com/hscells/transmute)
@@ -5,8 +7,6 @@
 [![gocover](http://gocover.io/_badge/github.com/hscells/transmute)](https://gocover.io/github.com/hscells/transmute)
 
 _PubMed/Medline Query Transpiler_
-
-![gopher](gopher.png)
 
 The goal of transmute is to provide a way of transforming PubMed/Medline search strategies from systematic reviews into
 other queries suitable for other search engines. The result of the transformation is an _immediate representation_ which
@@ -35,6 +35,8 @@ the next section.
 
 ## API Usage
 
+Here we construct a pipeline in Go:
+
 ```go
 query := `1. MMSE*.ti,ab.
 2. sMMSE.ti,ab.
@@ -53,6 +55,8 @@ if err != nil {
 
 println(dsl.StringPretty())
 ```
+
+Which results in:
 
 ```json
 {
