@@ -6,6 +6,8 @@
 
 _PubMed/Medline Query Transpiler_
 
+![gopher](gopher.png)
+
 The goal of transmute is to provide a way of transforming PubMed/Medline search strategies from systematic reviews into
 other queries suitable for other search engines. The result of the transformation is an _immediate representation_ which
 can be analysed with greater ease or transformed again run on other search engines. This is why transmute is described
