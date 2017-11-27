@@ -166,3 +166,8 @@ If you would like to extend transmute and create a new backend for it, have a re
 [documentation](https://godoc.org/github.com/hscells/transmute/backend#Backend). As this should lead you in the right
 direction. Writing a new backend requires the transformation of the immediate representation into the target query
 language.
+
+## Logo
+
+The Go gopher was created by [Renee French](https://reneefrench.blogspot.com/), licensed under
+[Creative Commons 3.0 Attributions license](https://creativecommons.org/licenses/by/3.0/).
