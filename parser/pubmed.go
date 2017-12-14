@@ -15,18 +15,18 @@ var PubMedFieldMapping = map[string][]string{
 	"MeSH":           {"mesh_headings"},
 	"MESH":           {"mesh_headings"},
 	"MeSH Terms":     {"mesh_headings"},
-	"Title/Abstract": {"title", "abstract"},
+	"Title/Abstract": {"title", "text"},
 	"Title":          {"title"},
-	"Abstract":       {"abstract"},
+	"Abstract":       {"text"},
 	"Publication":    {"pub_type"},
 	"mh":             {"mesh_headings"},
 	"sh":             {"mesh_headings"},
-	"tw":             {"title", "abstract"},
+	"tw":             {"title", "text"},
 	"ti":             {"title"},
 	"pt":             {"pub_type"},
 	"sb":             {"pub_status"},
-	"tiab":           {"title", "abstract"},
-	"default":        {"abstract"},
+	"tiab":           {"title", "text"},
+	"default":        {"text"},
 }
 
 func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
@@ -58,15 +58,19 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 		queryString = query
 	}
 
-	// Add a default field to the keyword if none have been defined
+	// Add a default field to the keyword if none have been defined.
 	if len(fields) == 0 {
 		log.Printf("using default field (%v) since %v has no fields", mapping["default"], query)
 		fields = mapping["default"]
 	}
 
-	// medline uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
-	// TODO is there anything in Elasticsearch to do this? - and by `this` I mean single character wildcards.
+	// PubMed uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
+	truncated := false
+	if strings.ContainsAny(queryString, "*$") {
+		truncated = true
+	}
 	queryString = strings.Replace(queryString, "$", "*", -1)
+	queryString = strings.Replace(queryString, "*", " ", -1)
 
 	queryString = strings.TrimSpace(queryString)
 
@@ -74,7 +78,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 		QueryString: queryString,
 		Fields:      fields,
 		Exploded:    exploded,
-		Truncated:   false,
+		Truncated:   truncated,
 	}
 }
 
@@ -162,7 +166,7 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 	}
 	prefix := t.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1 : len(prefix)-1]
+		prefix = prefix[1: len(prefix)-1]
 	}
 	_, queryGroup := t.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, mapping)
 	return queryGroup

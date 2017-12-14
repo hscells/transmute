@@ -10,11 +10,11 @@ import (
 )
 
 var MedlineFieldMapping = map[string][]string{
-	"mp":      {"mesh_headings"},
-	"af":      {"title", "abstract", "mesh_headings"},
-	"tw":      {"title", "abstract"},
-	"nm":      {"abstract", "mesh_headings"},
-	"ab":      {"abstract"},
+	"mp":      {"mesh_headings", "title", "text"},
+	"af":      {"title", "text", "mesh_headings"},
+	"tw":      {"title", "text"},
+	"nm":      {"text", "mesh_headings"},
+	"ab":      {"text"},
 	"ti":      {"title"},
 	"ot":      {"title"},
 	"sh":      {"mesh_headings"},
@@ -26,8 +26,9 @@ var MedlineFieldMapping = map[string][]string{
 	"sb":      {"mesh_headings"},
 	"mh":      {"mesh_headings"},
 	"pt":      {"pub_type"},
+	"em":      {"pub_date"},
 	"au":      {"author"},
-	"default": {"abstract"},
+	"default": {"text"},
 }
 
 var adjMatchRegexp, _ = regexp.Compile("^adj[0-9]*$")
@@ -38,7 +39,7 @@ type MedlineTransformer struct{}
 // TransformFields maps a string of fields into a slice of mapped fields.
 func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]string) []string {
 	parts := strings.Split(fields, ",")
-	mappedFields := []string{}
+	var mappedFields []string
 	for _, field := range parts {
 		mappedFields = append(mappedFields, mapping[field]...)
 	}
@@ -57,7 +58,7 @@ func (p MedlineTransformer) TransformNested(query string, mapping map[string][]s
 	fieldsString = ReversePreservingCombiningCharacters(fieldsString)
 	query = strings.Replace(query, fieldsString, "", 1)
 
-	fields := []string{}
+	var fields []string
 	fieldsString = strings.Replace(fieldsString, ".", "", -1)
 	for _, field := range strings.Split(fieldsString, ",") {
 		fields = append(fields, mapping[field]...)
@@ -100,22 +101,21 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 		}
 	}
 
-	// medline uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
-	// TODO is there anything in Elasticsearch to do this?
+	// Medline uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
+	truncated := false
+	if strings.ContainsAny(queryString, "*$") {
+		truncated = true
+	}
 	queryString = strings.Replace(queryString, "$", "*", -1)
+	queryString = strings.Replace(queryString, "*", " ", -1)
 
 	queryString = strings.TrimSpace(queryString)
-
-	// Add a default field to the keyword if none have been defined
-	if len(fields) == 0 {
-		fields = mapping["default"]
-	}
 
 	return ir.Keyword{
 		QueryString: queryString,
 		Fields:      fields,
 		Exploded:    exploded,
-		Truncated:   false,
+		Truncated:   truncated,
 	}
 }
 
@@ -156,9 +156,9 @@ func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, qu
 // Shunting-yard algorithm (https://en.wikipedia.org/wiki/Shunting-yard_algorithm).
 func (p MedlineTransformer) ConvertInfixToPrefix(infix []string) []string {
 	// The stack contains some intermediate values
-	stack := []string{}
+	var stack []string
 	// The result contains the actual expression
-	result := []string{}
+	var result []string
 
 	precedence := map[string]int{
 		"and":  1,
@@ -233,8 +233,21 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 	endTokens := ""
 
 	depth := 0
+	insideQuote := false
 
 	for _, char := range line {
+		// Here we attempt to parse a keyword that is quoted.
+		if char == '"' && !insideQuote {
+			insideQuote = true
+			continue
+		} else if char == '"' && insideQuote {
+			insideQuote = false
+			continue
+		} else if insideQuote {
+			currentToken += string(char)
+			continue
+		}
+
 		if unicode.IsSpace(char) {
 			t := strings.ToLower(currentToken)
 			if p.IsOperator(t) {
@@ -276,7 +289,7 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 	}
 	prefix := p.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1 : len(prefix)-1]
+		prefix = prefix[1: len(prefix)-1]
 	}
 	_, queryGroup := p.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, fields, mapping)
 	return queryGroup

@@ -125,6 +125,7 @@ func ExpandQuery(query map[int]map[string]map[int]string) Node {
 				for operator := range innerQuery {
 					n := Node{Reference: k, Operator: operator}
 					if recursionDepth > 10000 {
+						log.Printf("context: %v", innerQuery)
 						log.Fatalf("unable to parse, found a possible recursive rule on line %v", bottomReference)
 					}
 					node.Children = append(node.Children, expand(n, query))

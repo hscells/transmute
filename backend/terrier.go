@@ -3,7 +3,7 @@ package backend
 import (
 	"github.com/hscells/transmute/ir"
 	"fmt"
-	"regexp"
+	"strings"
 )
 
 type TerrierQuery struct {
@@ -12,13 +12,13 @@ type TerrierQuery struct {
 
 type TerrierBackend struct{}
 
-var (
-	regexSpace, _ = regexp.Compile(" +")
-)
+//var (
+//regexSpace, _ = regexp.Compile(" +")
+//)
 
 // String returns a JSON-encoded representation of the cqr.
 func (q TerrierQuery) String() string {
-	return regexSpace.ReplaceAllString(q.repr, " ")
+	return q.repr
 }
 
 // StringPretty returns a pretty-printed JSON-encoded representation of the cqr.
@@ -35,25 +35,30 @@ func (t TerrierBackend) Compile(q ir.BooleanQuery) BooleanQuery {
 
 	// Process the keywords.
 	if q.Operator == "and" {
-		tq.repr = " +( "
+		tq.repr = "("
+		keywords := []string{}
 		for _, keyword := range q.Keywords {
 			for _, field := range keyword.Fields {
-				tq.repr += fmt.Sprintf(" %s:%s ", field, keyword.QueryString)
+				keywords = append(keywords, fmt.Sprintf("+%s:%s", field, keyword.QueryString))
 			}
 		}
+		tq.repr += strings.Join(keywords, " ")
+
 		// Process the children.
 		for _, child := range q.Children {
 			tq.repr += t.Compile(child).String()
 		}
-		tq.repr += " ) "
+		tq.repr += ")"
 	} else if len(q.Operator) > 3 && q.Operator[0:3] == "adj" {
-		tq.repr += "\""
+		tq.repr += " \""
 
+		keywords := []string{}
 		for _, keyword := range q.Keywords {
 			for _, field := range keyword.Fields {
-				tq.repr += fmt.Sprintf(" %s:%s ", field, keyword.QueryString)
+				keywords = append(keywords, fmt.Sprintf("%s:%s", field, keyword.QueryString))
 			}
 		}
+		tq.repr += strings.Join(keywords, " ")
 
 		// Process the children.
 		for _, child := range q.Children {
@@ -63,17 +68,21 @@ func (t TerrierBackend) Compile(q ir.BooleanQuery) BooleanQuery {
 		distance := q.Operator[3:]
 		tq.repr += fmt.Sprintf("\"~%s ", distance)
 	} else {
-		tq.repr = " ( "
+		tq.repr = "("
+
+		keywords := []string{}
 		for _, keyword := range q.Keywords {
 			for _, field := range keyword.Fields {
-				tq.repr += fmt.Sprintf(" %s:%s ", field, keyword.QueryString)
+				keywords = append(keywords, fmt.Sprintf("%s:%s", field, keyword.QueryString))
 			}
 		}
+		tq.repr += strings.Join(keywords, " ")
+
 		// Process the children.
 		for _, child := range q.Children {
 			tq.repr += t.Compile(child).String()
 		}
-		tq.repr += " ) "
+		tq.repr += ")"
 	}
 
 	return tq
