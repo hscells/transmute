@@ -8,28 +8,32 @@ package backend
 import (
 	"encoding/json"
 	"github.com/hscells/transmute/ir"
-	"log"
 	"strconv"
 	"strings"
 	"github.com/hscells/meshexp"
 	"fmt"
+	"github.com/pkg/errors"
 )
 
+// ElasticsearchQuery is the transmute representation of an Elasticsearch keyword.
 type ElasticsearchQuery struct {
 	queryString string
 	fields      []string
 }
 
+// ElasticsearchBooleanQuery is the transmute representation of an Elasticsearch query.
 type ElasticsearchBooleanQuery struct {
 	queries  []ElasticsearchQuery
 	grouping string
 	children []BooleanQuery
 }
 
+// ElasticsearchCompiler is a compiler for Elasticsearch queries.
 type ElasticsearchCompiler struct {
 	tree *meshexp.MeSHTree
 }
 
+// m is a shorthand type for constructing large Elasticsearch queries.
 type m map[string]interface{}
 
 // NewElasticsearchCompiler returns a new backend for compiling Elasticsearch queries.
@@ -45,7 +49,7 @@ func NewElasticsearchCompiler() ElasticsearchCompiler {
 }
 
 // Compile transforms an immediate representation of a query into an Elasticsearch query.
-func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
+func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) (BooleanQuery, error) {
 	elasticSearchBooleanQuery := ElasticsearchBooleanQuery{}
 
 	var queries []ElasticsearchQuery
@@ -90,7 +94,11 @@ func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
 
 		var children []BooleanQuery
 		for _, child := range ir.Children {
-			children = append(children, b.Compile(child))
+			c, err := b.Compile(child)
+			if err != nil {
+				return nil, err
+			}
+			children = append(children, c)
 		}
 
 		if len(children) > 1 && len(queries) == 0 {
@@ -103,9 +111,7 @@ func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
 			rhsQuery.queries = queries
 			lhsQuery.children = children
 		} else {
-			log.Println(queries)
-			log.Println(children)
-			log.Fatalln("a not query cannot have less than two children")
+			return nil, errors.New(fmt.Sprintf("a not query cannot have less than two children:\n%v\n%v", queries, children))
 		}
 
 		elasticSearchBooleanQuery.children = []BooleanQuery{rhsQuery, lhsQuery}
@@ -116,38 +122,50 @@ func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
 
 		//fmt.Println(len(ir.Keywords), len(ir.Children))
 		if (len(ir.Keywords) == 0 || ir.Keywords == nil) && len(ir.Children) == 1 {
-			elasticSearchBooleanQuery = b.Compile(ir.Children[0]).(ElasticsearchBooleanQuery)
+			c, err := b.Compile(ir.Children[0])
+			if err != nil {
+				return nil, err
+			}
+			elasticSearchBooleanQuery = c.(ElasticsearchBooleanQuery)
 		} else {
 			for _, child := range ir.Children {
-				elasticSearchBooleanQuery.children = append(elasticSearchBooleanQuery.children, b.Compile(child))
+				c, err := b.Compile(child)
+				if err != nil {
+					return nil, err
+				}
+				elasticSearchBooleanQuery.children = append(elasticSearchBooleanQuery.children, c)
 			}
 		}
 
 		if len(elasticSearchBooleanQuery.queries) > 0 && len(elasticSearchBooleanQuery.grouping) == 0 {
-			log.Fatalf("no operator was defined for an Elasticsearch query, context: %v", elasticSearchBooleanQuery.queries)
+			return nil, errors.New(fmt.Sprintf("no operator was defined for an Elasticsearch query, context: %v", elasticSearchBooleanQuery.queries))
 		}
 	}
 
-	return elasticSearchBooleanQuery
+	return elasticSearchBooleanQuery, nil
 }
 
 // Representation is a wrapper for the traverseGroup function. This function should be used to transform
 // the Elasticsearch ir into a valid Elasticsearch query.
-func (q ElasticsearchBooleanQuery) Representation() interface{} {
+func (q ElasticsearchBooleanQuery) Representation() (interface{}, error) {
+	f, err := q.traverseGroup(m{})
+	if err != nil {
+		return nil, err
+	}
 	return m{
 		"query": m{
 			"constant_score": m{
-				"filter": q.traverseGroup(m{}),
+				"filter": f,
 				"boost":  1.0,
 			},
 		},
-	}
+	}, nil
 }
 
 // traverseGroup recursively transforms the Elasticsearch ir into a valid Elasticsearch query representable in JSON.
-func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) map[string]interface{} {
+func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 	// a group is a node in the tree
-	group := map[string]interface{}{}
+	group := m{}
 
 	// the children can either be queries (depth of 1) or other, nested boolean queries (depth of n)
 	// https://github.com/golang/go/wiki/InterfaceSlice
@@ -160,7 +178,11 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 			child := child.(ElasticsearchBooleanQuery)
 			// Error if we get anything other than a should.
 			if child.grouping != "should" {
-				log.Fatalf("unsupported operator for slop `%v`\noffending query:\n%v", child.grouping, child.StringPretty())
+				s, err := child.StringPretty()
+				if err != nil {
+					return nil, errors.New(fmt.Sprintf("unsupported operator for slop `%v` (can't show query)", child.grouping, ))
+				}
+				return nil, errors.New(fmt.Sprintf("unsupported operator for slop `%v`\noffending query:\n%v", child.grouping, s))
 			}
 			// Create the clauses inside one side of the span.
 			for _, query := range child.queries {
@@ -321,7 +343,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 					}
 				}
 			} else {
-				log.Fatalf("a query `%v` did not contain any fields", queryString)
+				return nil, errors.New(fmt.Sprintf("a query `%v` did not contain any fields", queryString))
 			}
 
 			groups[subQuery] = query
@@ -331,7 +353,11 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 		// And then the children.
 		for i := range q.children {
 			// Children are non-terminal so we descend down the tree.
-			groups[subQuery] = q.children[i].(ElasticsearchBooleanQuery).traverseGroup(map[string]interface{}{})
+			g, err := q.children[i].(ElasticsearchBooleanQuery).traverseGroup(m{})
+			if err != nil {
+				return nil, err
+			}
+			groups[subQuery] = g
 			subQuery++
 		}
 
@@ -341,7 +367,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 		node["bool"] = group
 	}
 
-	return node
+	return node, nil
 }
 
 // createAdjacentClause attempts to create an Elasticsearch version of the `adj` operator in Pubmed/Medline (slop).
@@ -421,13 +447,21 @@ func (q ElasticsearchQuery) createAdjacentClause(field string) []interface{} {
 }
 
 // String creates a machine-readable JSON Elasticsearch query.
-func (q ElasticsearchBooleanQuery) String() string {
-	b, _ := json.Marshal(q.Representation())
-	return string(b)
+func (q ElasticsearchBooleanQuery) String() (string, error) {
+	r, err := q.Representation()
+	if err != nil {
+		return "", err
+	}
+	b, err := json.Marshal(r)
+	return string(b), err
 }
 
 // StringPretty creates a human-readable JSON Elasticsearch query.
-func (q ElasticsearchBooleanQuery) StringPretty() string {
-	b, _ := json.MarshalIndent(q.Representation(), "", "    ")
-	return string(b)
+func (q ElasticsearchBooleanQuery) StringPretty() (string, error) {
+	r, err := q.Representation()
+	if err != nil {
+		return "", err
+	}
+	b, err := json.MarshalIndent(r, "", "  ")
+	return string(b), err
 }

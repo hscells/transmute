@@ -9,14 +9,14 @@ import "github.com/hscells/transmute/ir"
 // BooleanQuery is an interface for handling the queries in a query language. The most important method is String(),
 // which will output an appropriate query suitable for a search engine.
 type BooleanQuery interface {
-	Representation() interface{}
-	String() string
-	StringPretty() string
+	Representation() (interface{}, error)
+	String() (string, error)
+	StringPretty() (string, error)
 }
 
 // Compiler is an interface which requires the implementation of a compiler.
 type Compiler interface {
 	// Compile will transform an immediate representation into the corresponding boolean query for the backend. This
 	// is the reason both the backend and query interfaces must be implemented for this package.
-	Compile(ir ir.BooleanQuery) BooleanQuery
+	Compile(ir ir.BooleanQuery) (BooleanQuery, error)
 }

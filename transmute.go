@@ -148,6 +148,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	outputFile.WriteString(compiledQuery.StringPretty())
+	s, err := compiledQuery.StringPretty()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	outputFile.WriteString(s)
 
 }

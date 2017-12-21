@@ -3,10 +3,10 @@ package lexer
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
+	"errors"
 )
 
 var (
@@ -86,7 +86,7 @@ func ProcessNamedOperators(queries map[int]string, operator string) (map[string]
 }
 
 // ExpandQuery takes a query that has been processed and expands it into a tree.
-func ExpandQuery(query map[int]map[string]map[int]string) Node {
+func ExpandQuery(query map[int]map[string]map[int]string) (Node, error) {
 	var bottomReference int
 	var operator string
 
@@ -116,9 +116,9 @@ func ExpandQuery(query map[int]map[string]map[int]string) Node {
 	ast := Node{Reference: bottomReference, Operator: operator, Children: []Node{}}
 
 	// This recursive function builds the tree recursively by adding nodes top down.
-	var expand func(node Node, query map[int]map[string]map[int]string) Node
+	var expand func(node Node, query map[int]map[string]map[int]string) (Node, error)
 	var recursionDepth int
-	expand = func(node Node, query map[int]map[string]map[int]string) Node {
+	expand = func(node Node, query map[int]map[string]map[int]string) (Node, error) {
 		recursionDepth++
 		for k, v := range query[node.Reference][node.Operator] {
 			// If we find a query in the top-level, process that.
@@ -126,22 +126,23 @@ func ExpandQuery(query map[int]map[string]map[int]string) Node {
 				for operator := range innerQuery {
 					n := Node{Reference: k, Operator: operator}
 					if recursionDepth > 10000 {
-						log.Printf("context: %v", innerQuery)
-						log.Fatalf("unable to parse, found a possible recursive rule on line %v", bottomReference)
+						return Node{}, errors.New(fmt.Sprintf("context: %v\nunable to parse, found a possible recursive rule on line %v", innerQuery, bottomReference))
 					}
-					node.Children = append(node.Children, expand(n, query))
+					e, err := expand(n, query)
+					if err != nil {
+						return Node{}, err
+					}
+					node.Children = append(node.Children, e)
 				}
 			} else {
 				// Otherwise just append.
 				node.Children = append(node.Children, Node{Reference: k, Value: v})
 			}
 		}
-		return node
+		return node, nil
 	}
 
-	ast = expand(ast, query)
-
-	return ast
+	return expand(ast, query)
 }
 
 // Lex creates the abstract syntax tree for the query. It will preprocess the query to try to normalise it. This
@@ -183,13 +184,10 @@ func Lex(query string, options LexOptions) (Node, error) {
 		queries[reference] = line
 	}
 
-	var ast Node
 	if len(depth1Query) == 0 {
-		ast = Node{Value: queries[0], Reference: 1}
+		return Node{Value: queries[0], Reference: 1}, nil
 	} else {
 		// In the second pass, we then parse a second time recursively to expand the inner queries at depth 1.
-		ast = ExpandQuery(depth1Query)
+		return ExpandQuery(depth1Query)
 	}
-
-	return ast, nil
 }

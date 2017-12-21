@@ -58,6 +58,6 @@ func (p TransmutePipeline) Execute(query string) (backend.BooleanQuery, error) {
 	boolQuery := p.Parser.Parse(ast)
 
 	// Compile.
-	return p.Compiler.Compile(boolQuery), nil
+	return p.Compiler.Compile(boolQuery)
 
 }

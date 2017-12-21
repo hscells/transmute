@@ -335,8 +335,10 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 		stack = append(stack, endTokens)
 	}
 	prefix := p.ConvertInfixToPrefix(stack)
-	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1: len(prefix)-1]
+	if len(prefix) > 0 {
+		if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
+			prefix = prefix[1: len(prefix)-1]
+		}
 	}
 	_, queryGroup := p.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, fields, mapping)
 	return queryGroup

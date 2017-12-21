@@ -15,26 +15,26 @@ type CommonQueryRepresentationQuery struct {
 type CommonQueryRepresentationBackend struct{}
 
 // Representation returns the CQR.
-func (q CommonQueryRepresentationQuery) Representation() interface{} {
-	return q.repr
+func (q CommonQueryRepresentationQuery) Representation() (interface{}, error) {
+	return q.repr, nil
 }
 
 // String returns a JSON-encoded representation of the cqr.
-func (q CommonQueryRepresentationQuery) String() string {
-	b, _ := json.Marshal(q.repr)
-	return string(b)
+func (q CommonQueryRepresentationQuery) String() (string, error) {
+	b, err := json.Marshal(q.repr)
+	return string(b), err
 }
 
 // StringPretty returns a pretty-printed JSON-encoded representation of the cqr.
-func (q CommonQueryRepresentationQuery) StringPretty() string {
-	b, _ := json.MarshalIndent(q.repr, "", "    ")
-	return string(b)
+func (q CommonQueryRepresentationQuery) StringPretty() (string, error) {
+	b, err := json.MarshalIndent(q.repr, "", "    ")
+	return string(b), err
 }
 
 // Compile transforms the transmute ir into CQR. The CQR is slightly different to the transmute ir, in that the
 // depth of the children is different. Take note of how the children of a transmute ir differs from the children of CQR.
-func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) BooleanQuery {
-	children := []cqr.CommonQueryRepresentation{}
+func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQuery, error) {
+	var children []cqr.CommonQueryRepresentation
 	for _, keyword := range q.Keywords {
 		k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
 			SetOption("exploded", keyword.Exploded).
@@ -42,9 +42,13 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) BooleanQuer
 		children = append(children, k)
 	}
 	for _, child := range q.Children {
-		subChildren := []cqr.CommonQueryRepresentation{}
+		var subChildren []cqr.CommonQueryRepresentation
 		for _, subChild := range child.Children {
-			cqrSub := b.Compile(subChild).(CommonQueryRepresentationQuery).repr
+			c, err := b.Compile(subChild)
+			if err != nil {
+				return nil, err
+			}
+			cqrSub := c.(CommonQueryRepresentationQuery).repr
 			subChildren = append(subChildren, cqrSub)
 		}
 		for _, keyword := range child.Keywords {
@@ -56,7 +60,7 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) BooleanQuer
 		children = append(children, cqr.NewBooleanQuery(child.Operator, subChildren))
 	}
 	repr := cqr.NewBooleanQuery(q.Operator, children)
-	return CommonQueryRepresentationQuery{repr: repr}
+	return CommonQueryRepresentationQuery{repr: repr}, nil
 }
 
 // NewCQRBackend returns a new CQR backend.
