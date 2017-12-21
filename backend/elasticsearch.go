@@ -11,6 +11,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"github.com/hscells/meshexp"
+	"fmt"
 )
 
 type ElasticsearchQuery struct {
@@ -24,11 +26,22 @@ type ElasticsearchBooleanQuery struct {
 	children []BooleanQuery
 }
 
-type ElasticsearchCompiler struct{}
+type ElasticsearchCompiler struct {
+	tree *meshexp.MeSHTree
+}
+
+type m map[string]interface{}
 
 // NewElasticsearchCompiler returns a new backend for compiling Elasticsearch queries.
 func NewElasticsearchCompiler() ElasticsearchCompiler {
-	return ElasticsearchCompiler{}
+	tree, err := meshexp.Default()
+	if err != nil {
+		panic(err)
+	}
+
+	return ElasticsearchCompiler{
+		tree: tree,
+	}
 }
 
 // Compile transforms an immediate representation of a query into an Elasticsearch query.
@@ -54,6 +67,17 @@ func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
 		query.queryString = keyword.QueryString
 		query.fields = keyword.Fields
 		queries = append(queries, query)
+
+		if keyword.Exploded {
+			terms := b.tree.Explode(query.queryString)
+			for _, term := range terms {
+				queries = append(queries, ElasticsearchQuery{
+					queryString: term,
+					fields:      keyword.Fields,
+				})
+			}
+		}
+
 	}
 
 	if elasticSearchBooleanQuery.grouping == "must_not" {
@@ -90,12 +114,17 @@ func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
 	} else {
 		elasticSearchBooleanQuery.queries = queries
 
-		for _, child := range ir.Children {
-			elasticSearchBooleanQuery.children = append(elasticSearchBooleanQuery.children, b.Compile(child))
+		//fmt.Println(len(ir.Keywords), len(ir.Children))
+		if (len(ir.Keywords) == 0 || ir.Keywords == nil) && len(ir.Children) == 1 {
+			elasticSearchBooleanQuery = b.Compile(ir.Children[0]).(ElasticsearchBooleanQuery)
+		} else {
+			for _, child := range ir.Children {
+				elasticSearchBooleanQuery.children = append(elasticSearchBooleanQuery.children, b.Compile(child))
+			}
 		}
 
-		if len(elasticSearchBooleanQuery.grouping) == 0 {
-			log.Fatalf("no operator was defined for an Elasticsearch query, context: %v", ir.Keywords)
+		if len(elasticSearchBooleanQuery.queries) > 0 && len(elasticSearchBooleanQuery.grouping) == 0 {
+			log.Fatalf("no operator was defined for an Elasticsearch query, context: %v", elasticSearchBooleanQuery.queries)
 		}
 	}
 
@@ -105,8 +134,13 @@ func (b ElasticsearchCompiler) Compile(ir ir.BooleanQuery) BooleanQuery {
 // Representation is a wrapper for the traverseGroup function. This function should be used to transform
 // the Elasticsearch ir into a valid Elasticsearch query.
 func (q ElasticsearchBooleanQuery) Representation() interface{} {
-	return map[string]interface{}{
-		"query": q.traverseGroup(map[string]interface{}{}),
+	return m{
+		"query": m{
+			"constant_score": m{
+				"filter": q.traverseGroup(m{}),
+				"boost":  1.0,
+			},
+		},
 	}
 }
 
@@ -120,7 +154,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 	var groups = make([]interface{}, len(q.queries)+len(q.children))
 	subQuery := 0
 
-	if q.grouping[0:3] == "adj" {
+	if len(q.grouping) >= 3 && q.grouping[0:3] == "adj" {
 		clauses := map[string][]interface{}{}
 		for _, child := range q.children {
 			child := child.(ElasticsearchBooleanQuery)
@@ -144,7 +178,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 		}
 
 		// Extract the size of the adjacency (slop size)
-		var slopSize int
+		slopSize := 2
 		if len(q.grouping) > 3 {
 			slopString := strings.Replace(q.grouping, "adj", "", -1)
 			var err error
@@ -152,18 +186,17 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 			if err != nil {
 				panic(err)
 			}
-		} else {
-			slopSize = 1
 		}
 
 		var query map[string]interface{}
 		if len(clauses) == 1 {
 			// Add both sides of the adjacency to the span.
 			for _, clause := range clauses {
-				query = map[string]interface{}{
-					"span_near": map[string]interface{}{
-						"clauses": clause,
-						"slop":    slopSize,
+				query = m{
+					"span_near": m{
+						"clauses":  clause,
+						"slop":     slopSize,
+						"in_order": false,
 					},
 				}
 			}
@@ -171,16 +204,17 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 			queries := make([]interface{}, len(clauses))
 			i := 0
 			for _, clause := range clauses {
-				queries[i] = map[string]interface{}{
-					"span_near": map[string]interface{}{
-						"clauses": clause,
-						"slop":    slopSize,
+				queries[i] = m{
+					"span_near": m{
+						"clauses":  clause,
+						"slop":     slopSize,
+						"in_order": false,
 					},
 				}
 				i++
 			}
-			outerSpan := map[string]interface{}{
-				"bool": map[string]interface{}{
+			outerSpan := m{
+				"bool": m{
 					"should": []interface{}{
 						queries,
 					},
@@ -201,13 +235,23 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 			// Now, we can have a general way of constructing the query.
 			if len(fields) > 1 {
 				// Multiple fields, with a wildcard query string.
-				if strings.ContainsAny(queryString, "*?") {
+				if strings.ContainsAny(queryString, "*?~") {
 					var queries []interface{}
-
+					/*
+					{
+              			"query_string": {
+                			"query": "text.stemmed:gonadotrop?in releasing hormone agonist*",
+                			"analyze_wildcard": true,
+               	 			"split_on_whitespace" : false
+              			}
+					}
+					 */
 					for _, field := range fields {
-						queries = append(queries, map[string]interface{}{
-							"wildcard": map[string]interface{}{
-								field: queryString,
+						queries = append(queries, m{
+							"query_string": m{
+								"query":               fmt.Sprintf("%v:%v", field, queryString),
+								"analyze_wildcard":    true,
+								"split_on_whitespace": false,
 							},
 						})
 					}
@@ -221,25 +265,32 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 					var queries []interface{}
 					// Multiple fields, with a regular query string.
 					for _, field := range fields {
-
-						if strings.Contains(queryString, " ") {
+						if strings.ContainsAny(queryString, "*?~") {
+							queries = append(queries, m{
+								"query_string": m{
+									"query":               fmt.Sprintf("%v:%v", field, queryString),
+									"analyze_wildcard":    true,
+									"split_on_whitespace": false,
+								},
+							})
+						} else if strings.Contains(queryString, " ") {
 							// One type of query is needed for matching phrases.
-							queries = append(queries, map[string]interface{}{
-								"match_phrase": map[string]interface{}{
+							queries = append(queries, m{
+								"match_phrase": m{
 									field: queryString,
 								},
 							})
 						} else {
 							// Otherwise we just use a regular match query.
-							queries = append(queries, map[string]interface{}{
-								"match": map[string]interface{}{
+							queries = append(queries, m{
+								"match": m{
 									field: queryString,
 								},
 							})
 						}
 					}
-					query = map[string]interface{}{
-						"bool": map[string]interface{}{
+					query = m{
+						"bool": m{
 							"should": queries,
 						},
 					}
@@ -247,22 +298,24 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node map[string]interface{}) ma
 			} else if len(fields) == 1 {
 				// Check to see if we first need to create a wildcard query.
 				if strings.ContainsAny(queryString, "*?") {
-					query = map[string]interface{}{
-						"wildcard": map[string]interface{}{
-							fields[0]: queryString,
+					query = m{
+						"query_string": m{
+							"query":               fmt.Sprintf("%v:%v", fields[0], queryString),
+							"analyze_wildcard":    true,
+							"split_on_whitespace": false,
 						},
 					}
 				} else if strings.Contains(queryString, " ") {
 					// One type of query is needed for matching phrases.
-					query = map[string]interface{}{
-						"match_phrase": map[string]interface{}{
+					query = m{
+						"match_phrase": m{
 							fields[0]: queryString,
 						},
 					}
 				} else {
 					// Otherwise we just use a regular match query.
-					query = map[string]interface{}{
-						"match": map[string]interface{}{
+					query = m{
+						"match": m{
 							fields[0]: queryString,
 						},
 					}
@@ -296,22 +349,68 @@ func (q ElasticsearchQuery) createAdjacentClause(field string) []interface{} {
 	var innerClauses []interface{}
 
 	// Create the wildcard query.
-	if strings.Contains(q.queryString, "*") || strings.Contains(q.queryString, "?") {
-		innerClauses = append(innerClauses, map[string]interface{}{
-			"span_multi": map[string]interface{}{
-				"match": map[string]interface{}{
-					"wildcard": map[string]interface{}{
-						field: q.queryString,
+	if strings.ContainsAny(q.queryString, "*?$") {
+		if strings.Contains(q.queryString, " ") {
+			var spanTerms []m
+			for _, term := range strings.Split(q.queryString, " ") {
+				if strings.ContainsAny(term, "*?$") {
+					spanTerms = append(spanTerms, m{
+						"span_multi": m{
+							"match": m{
+								"wildcard": m{
+									field: term,
+								},
+							},
+						},
+					})
+				} else {
+					spanTerms = append(spanTerms, m{
+						"span_term": m{
+							field: term,
+						},
+					})
+				}
+			}
+			innerClauses = append(innerClauses, m{
+				"span_near": m{
+					"clauses":  spanTerms,
+					"in_order": true,
+					"slop":     1,
+				},
+			})
+		} else {
+			innerClauses = append(innerClauses, m{
+				"span_multi": m{
+					"match": m{
+						"wildcard": m{
+							field: q.queryString,
+						},
 					},
 				},
+			})
+		}
+	} else if strings.Contains(q.queryString, " ") {
+		var spanTerms []m
+		for _, term := range strings.Split(q.queryString, " ") {
+			spanTerms = append(spanTerms, m{
+				"span_term": m{
+					field: term,
+				},
+			})
+		}
+		innerClauses = append(innerClauses, m{
+			"span_near": m{
+				"clauses":  spanTerms,
+				"in_order": true,
+				"slop":     1,
 			},
 		})
 	} else {
 		// Create a term matching query.
-		innerClauses = append(innerClauses, map[string]interface{}{
-			"span_multi": map[string]interface{}{
-				"match": map[string]interface{}{
-					"prefix": map[string]interface{}{
+		innerClauses = append(innerClauses, m{
+			"span_multi": m{
+				"match": m{
+					"prefix": m{
 						field: q.queryString,
 					},
 				},

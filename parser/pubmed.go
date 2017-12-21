@@ -66,10 +66,11 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 
 	// PubMed uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
 	truncated := false
-	if strings.ContainsAny(queryString, "*$") {
+	if strings.ContainsAny(queryString, "*$?") {
 		truncated = true
 	}
 	queryString = strings.Replace(queryString, "$", "*", -1)
+	queryString = strings.Replace(queryString, "?", "*", -1)
 	queryString = strings.Replace(queryString, "*", " ", -1)
 
 	queryString = strings.TrimSpace(queryString)

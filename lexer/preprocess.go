@@ -25,6 +25,7 @@ func PreProcess(query string, options LexOptions) string {
 	// Otherwise just process each line at a time.
 	newQuery := ""
 	for _, line := range strings.Split(query, "\n") {
+		line = strings.TrimSpace(line)
 		queryString := ""
 		foundStart := false
 		for _, char := range line {

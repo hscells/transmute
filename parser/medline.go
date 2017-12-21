@@ -2,7 +2,6 @@ package parser
 
 import (
 	"github.com/hscells/transmute/ir"
-	"log"
 	"regexp"
 	"strings"
 	"unicode"
@@ -25,13 +24,15 @@ var MedlineFieldMapping = map[string][]string{
 	"kf":      {"mesh_headings"},
 	"sb":      {"mesh_headings"},
 	"mh":      {"mesh_headings"},
-	"pt":      {"pub_type"},
-	"em":      {"pub_date"},
+	"pt":      {"publication_types"},
+	"em":      {"pubdate"},
+	"ed":      {"pubdate"},
 	"au":      {"author"},
 	"default": {"text"},
 }
 
 var adjMatchRegexp, _ = regexp.Compile("^adj[0-9]*$")
+var medlineFieldRegexp, _ = regexp.Compile(".[a-z]{2}.")
 
 // MedlineTransformer is an implementation of a QueryTransformer in the parser package.
 type MedlineTransformer struct{}
@@ -46,6 +47,14 @@ func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]
 	return mappedFields
 }
 
+func reverse(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+
 // TransformNested implements the transformation of a nested query.
 func (p MedlineTransformer) TransformNested(query string, mapping map[string][]string) ir.BooleanQuery {
 	var fieldsString string
@@ -55,6 +64,8 @@ func (p MedlineTransformer) TransformNested(query string, mapping map[string][]s
 		}
 		fieldsString += string(query[i])
 	}
+	fieldsString = reverse(fieldsString)
+
 	fieldsString = ReversePreservingCombiningCharacters(fieldsString)
 	query = strings.Replace(query, fieldsString, "", 1)
 
@@ -79,6 +90,9 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 	var fields []string
 	exploded := false
 
+	// Trim the query string to prevent whitespace such as newlines interfering with string processing.
+	query = strings.TrimSpace(query)
+
 	if query[len(query)-1] == '/' {
 		// Check to see if we are looking at a mesh heading string.
 		expParts := strings.Split(query, " ")
@@ -101,13 +115,13 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 		}
 	}
 
-	// Medline uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
 	truncated := false
-	if strings.ContainsAny(queryString, "*$") {
+	if strings.ContainsAny(queryString, "*$?") {
 		truncated = true
 	}
-	queryString = strings.Replace(queryString, "$", "*", -1)
-	queryString = strings.Replace(queryString, "*", " ", -1)
+
+	// Medline uses $ to represent the stem of a word. In Elasticsearch it's a `~`.
+	queryString = strings.Replace(queryString, "$", "~", -1)
 
 	queryString = strings.TrimSpace(queryString)
 
@@ -122,7 +136,6 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 // transformPrefixGroupToQueryGroup transforms a prefix syntax tree into a query group. The new QueryGroup is built by
 // recursively navigating the syntax tree.
 func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, queryGroup ir.BooleanQuery, fields []string, mapping map[string][]string) ([]string, ir.BooleanQuery) {
-	//log.Println(queryGroup)
 	if len(prefix) == 0 {
 		return prefix, queryGroup
 	}
@@ -135,21 +148,55 @@ func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, qu
 		prefix, subGroup = p.TransformPrefixGroupToQueryGroup(prefix[1:], ir.BooleanQuery{}, fields, mapping)
 		queryGroup.Children = append(queryGroup.Children, subGroup)
 	} else if token == ")" {
+		// At this point, the next item in the prefix slice can be the fields for the inner query terms.
+		// Ths needs to be handled!!
+		// Process the default fields.
+		foundFields := mapping["default"]
+		if len(prefix) > 1 {
+			// When we have a prefix that matches a field for the previous inner group of queries.
+			if medlineFieldRegexp.MatchString(prefix[1]) {
+				fieldString := prefix[1][1:3]
+
+				// We can try to map them.
+				if strings.Contains(fieldString, ",") {
+					foundFields = p.TransformFields(fieldString, mapping)
+				} else {
+					if f, ok := mapping[fieldString]; ok {
+						foundFields = f
+					}
+				}
+				prefix = prefix[1:]
+			}
+		}
+		for i, kw := range queryGroup.Keywords {
+			if kw.Fields == nil || len(kw.Fields) == 0 {
+				queryGroup.Keywords[i].Fields = foundFields
+			}
+		}
+
 		return prefix, queryGroup
 	} else {
 		if len(token) > 0 {
 			k := p.TransformSingle(token, mapping)
 			// Add a default field to the keyword if none have been defined
-			if len(k.Fields) == 0 && len(fields) > 0 {
-				k.Fields = fields
-			} else if len(k.Fields) == 0 && len(fields) == 0 {
-				log.Printf("no inner or outer fields are defined for nested query `%v`, using default (%v)", token, mapping["default"])
-				k.Fields = mapping["default"]
+			//if len(k.Fields) == 0 && len(fields) > 0 {
+			//	k.Fields = fields
+			//} else if len(k.Fields) == 0 && len(fields) == 0 {
+			//	log.Printf("no inner or outer fields are defined for nested query `%v`, using default (%v)", token, mapping["default"])
+			//	k.Fields = mapping["default"]
+			//}
+			if len(k.QueryString) > 0 {
+				queryGroup.Keywords = append(queryGroup.Keywords, k)
 			}
-			queryGroup.Keywords = append(queryGroup.Keywords, k)
 		}
 	}
-	return p.TransformPrefixGroupToQueryGroup(prefix[1:], queryGroup, fields, mapping)
+	pf := prefix
+	if len(prefix) > 1 {
+		pf = prefix[1:]
+	} else {
+		pf = []string{}
+	}
+	return p.TransformPrefixGroupToQueryGroup(pf, queryGroup, fields, mapping)
 }
 
 // ConvertInfixToPrefix translates an infix grouping expression into a prefix expression. The way this is done is the

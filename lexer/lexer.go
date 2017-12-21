@@ -34,6 +34,7 @@ func ProcessInfixOperators(queries map[int]string, operators string) (map[string
 	var operator string
 	// We can be pretty sure that this will be correct.
 	for i, token := range strings.Split(operators, " ") {
+		token = strings.TrimSpace(token)
 		// This is a bit of a hack but it does the job.
 		if i%2 == 0 {
 			reference, err := strconv.Atoi(token)
@@ -155,6 +156,7 @@ func Lex(query string, options LexOptions) (Node, error) {
 	var err error
 	// In the first pass, we create a depth-1 query structure.
 	for reference, line := range strings.Split(query, "\n") {
+		line = strings.TrimSpace(line)
 		// First check if we are looking at an operator.
 
 		if numberRegex.MatchString(strings.Split(line, " ")[0]) {
