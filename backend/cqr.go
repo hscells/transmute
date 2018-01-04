@@ -57,8 +57,14 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 				SetOption("truncated", keyword.Truncated)
 			subChildren = append(subChildren, k)
 		}
-		children = append(children, cqr.NewBooleanQuery(child.Operator, subChildren))
+
+		if len(child.Operator) == 0 && len(child.Children) == 1 {
+			children = append(children, subChildren...)
+		} else {
+			children = append(children, cqr.NewBooleanQuery(child.Operator, subChildren))
+		}
 	}
+
 	repr := cqr.NewBooleanQuery(q.Operator, children)
 	return CommonQueryRepresentationQuery{repr: repr}, nil
 }
