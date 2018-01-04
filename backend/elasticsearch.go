@@ -295,13 +295,6 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 									"split_on_whitespace": false,
 								},
 							})
-						} else if strings.Contains(queryString, " ") {
-							// One type of query is needed for matching phrases.
-							queries = append(queries, m{
-								"match_phrase": m{
-									field: queryString,
-								},
-							})
 						} else {
 							// Otherwise we just use a regular match query.
 							queries = append(queries, m{
@@ -325,13 +318,6 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 							"query":               fmt.Sprintf("%v:%v", fields[0], queryString),
 							"analyze_wildcard":    true,
 							"split_on_whitespace": false,
-						},
-					}
-				} else if strings.Contains(queryString, " ") {
-					// One type of query is needed for matching phrases.
-					query = m{
-						"match_phrase": m{
-							fields[0]: queryString,
 						},
 					}
 				} else {
