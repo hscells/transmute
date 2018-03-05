@@ -61,7 +61,11 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 		if len(child.Operator) == 0 {
 			children = append(children, subChildren...)
 		} else {
-			children = append(children, cqr.NewBooleanQuery(child.Operator, subChildren))
+			bq := cqr.NewBooleanQuery(child.Operator, subChildren)
+			for k, v := range child.Options {
+				bq.SetOption(k, v)
+			}
+			children = append(children, bq)
 		}
 	}
 
@@ -82,6 +86,10 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 		repr = cqr.NewBooleanQuery(q.Children[0].Operator, keywords)
 	} else {
 		repr = cqr.NewBooleanQuery(q.Operator, children)
+	}
+
+	for k, v := range q.Options {
+		repr.SetOption(k, v)
 	}
 
 	return CommonQueryRepresentationQuery{repr: repr}, nil

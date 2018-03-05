@@ -21,4 +21,6 @@ type BooleanQuery struct {
 	Keywords []Keyword `json:"keywords"`
 	// Any sub-queries, or children of the current query
 	Children []BooleanQuery `json:"children"`
+	// Optional parameters of the query
+	Options map[string]interface{}
 }

@@ -17,7 +17,7 @@ func (c CQRTransformer) TransformSingle(query string, mapping map[string][]strin
 
 // transformSingle maps CQR keywords to ir keywords.
 func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir.Keyword {
-	fields := []string{}
+	var fields []string
 	if _, ok := rep["fields"]; ok && rep["fields"] != nil {
 		for _, field := range rep["fields"].([]interface{}) {
 			fields = append(fields, field.(string))
@@ -38,8 +38,13 @@ func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir
 		truncated = v.(bool)
 	}
 
+	query := ""
+	if rep["query"] != nil {
+		query = rep["query"].(string)
+	}
+
 	return ir.Keyword{
-		QueryString: rep["query"].(string),
+		QueryString: query,
 		Fields:      fields,
 		Exploded:    exploded,
 		Truncated:   truncated,
@@ -49,6 +54,11 @@ func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir
 // transformNested transforms the CQR nested queries.
 func transformNested(rep map[string]interface{}, mapping map[string][]string) ir.BooleanQuery {
 	q := ir.BooleanQuery{Children: []ir.BooleanQuery{}, Keywords: []ir.Keyword{}}
+
+	if rep["options"] != nil {
+		q.Options = rep["options"].(map[string]interface{})
+	}
+
 	if rep["children"] != nil {
 		q.Operator = rep["operator"].(string)
 		for _, child := range rep["children"].([]interface{}) {
@@ -59,6 +69,8 @@ func transformNested(rep map[string]interface{}, mapping map[string][]string) ir
 				q.Children = append(q.Children, transformNested(cq, mapping))
 			}
 		}
+	} else {
+		q = ir.BooleanQuery{Operator: "and", Keywords: []ir.Keyword{transformSingle(rep, mapping)}}
 	}
 
 	return q
