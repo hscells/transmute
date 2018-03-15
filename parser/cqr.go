@@ -31,11 +31,13 @@ func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir
 	}
 
 	var exploded, truncated bool
-	if v, ok := rep["options"].(map[string]interface{})["exploded"]; ok {
-		exploded = v.(bool)
-	}
-	if v, ok := rep["options"].(map[string]interface{})["truncated"]; ok {
-		truncated = v.(bool)
+	if _, ok := rep["options"].(map[string]interface{}); ok {
+		if v, ok := rep["options"].(map[string]interface{})["exploded"]; ok {
+			exploded = v.(bool)
+		}
+		if v, ok := rep["options"].(map[string]interface{})["truncated"]; ok {
+			truncated = v.(bool)
+		}
 	}
 
 	query := ""
@@ -70,7 +72,7 @@ func transformNested(rep map[string]interface{}, mapping map[string][]string) ir
 			}
 		}
 	} else {
-		q = ir.BooleanQuery{Operator: "and", Keywords: []ir.Keyword{transformSingle(rep, mapping)}}
+		q = ir.BooleanQuery{Operator: "or", Keywords: []ir.Keyword{transformSingle(rep, mapping)}}
 	}
 
 	return q

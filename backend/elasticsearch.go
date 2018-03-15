@@ -173,7 +173,27 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 	subQuery := 0
 
 	if len(q.grouping) >= 3 && q.grouping[0:3] == "adj" {
-		clauses := map[string][]interface{}{}
+		adjClauses := map[string][]interface{}{}
+		var clauses []interface{}
+
+		// Extract the size of the adjacency (slop size)
+		slopSize := 0
+		if len(q.grouping) > 3 {
+			slopString := strings.Replace(q.grouping, "adj", "", -1)
+			var err error
+			slopSize, err = strconv.Atoi(slopString)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		// Now create the clauses for each of the queries at this level.
+		for _, query := range q.queries {
+			for _, field := range query.fields {
+				adjClauses[field] = append(adjClauses[field], query.createAdjacentClause(field))
+			}
+		}
+
 		for _, child := range q.children {
 			child := child.(ElasticsearchBooleanQuery)
 			// Error if we get anything other than a should.
@@ -187,63 +207,77 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 			// Create the clauses inside one side of the span.
 			for _, query := range child.queries {
 				for _, field := range query.fields {
-					clauses[field] = append(clauses[field], query.createAdjacentClause(field)...)
+					clauses = append(clauses, m{
+						"span_near": m{
+							"clauses":  append(adjClauses[field], query.createAdjacentClause(field)),
+							"slop":     slopSize,
+							"in_order": false,
+						},
+					})
 				}
-			}
-		}
-
-		// Now create the clauses for each of the queries at this level.
-		for _, query := range q.queries {
-			for _, field := range query.fields {
-				clauses[field] = append(clauses[field], query.createAdjacentClause(field)...)
-			}
-		}
-
-		// Extract the size of the adjacency (slop size)
-		slopSize := 2
-		if len(q.grouping) > 3 {
-			slopString := strings.Replace(q.grouping, "adj", "", -1)
-			var err error
-			slopSize, err = strconv.Atoi(slopString)
-			if err != nil {
-				panic(err)
 			}
 		}
 
 		var query map[string]interface{}
-		if len(clauses) == 1 {
-			// Add both sides of the adjacency to the span.
-			for _, clause := range clauses {
-				query = m{
+		if len(clauses) == 0 {
+			var ac []interface{}
+			for _, q := range adjClauses {
+				ac = append(ac, m{
 					"span_near": m{
-						"clauses":  clause,
+						"clauses":  q,
 						"slop":     slopSize,
 						"in_order": false,
 					},
-				}
+				})
 			}
-		} else if len(clauses) > 1 {
-			queries := make([]interface{}, len(clauses))
-			i := 0
-			for _, clause := range clauses {
-				queries[i] = m{
-					"span_near": m{
-						"clauses":  clause,
-						"slop":     slopSize,
-						"in_order": false,
-					},
-				}
-				i++
+			query = m{
+				"bool": m{
+					"must": ac,
+				},
 			}
-			outerSpan := m{
+		} else {
+			query = m{
 				"bool": m{
 					"should": []interface{}{
-						queries,
+						clauses,
 					},
 				},
 			}
-			query = outerSpan
 		}
+
+		//if len(clauses) == 1 {
+		//	// Add both sides of the adjacency to the span.
+		//	for _, clause := range clauses {
+		//		query = m{
+		//			"span_near": m{
+		//				"clauses":  clause,
+		//				"slop":     slopSize,
+		//				"in_order": false,
+		//			},
+		//		}
+		//	}
+		//} else if len(clauses) > 1 {
+		//	queries := make([]interface{}, len(clauses))
+		//	i := 0
+		//	for _, clause := range clauses {
+		//		queries[i] = m{
+		//			"span_near": m{
+		//				"clauses":  clause,
+		//				"slop":     slopSize,
+		//				"in_order": false,
+		//			},
+		//		}
+		//		i++
+		//	}
+		//	outerSpan := m{
+		//		"bool": m{
+		//			"should": []interface{}{
+		//				queries,
+		//			},
+		//		},
+		//	}
+		//	query = outerSpan
+		//}
 		group = query
 		node = group
 	} else {
@@ -253,6 +287,11 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 			fields := q.queries[i].fields
 
 			queryString := q.queries[i].queryString
+
+			matchType := "match"
+			if strings.ContainsRune(queryString, ' ') {
+				matchType = "match_phrase"
+			}
 
 			// Now, we can have a general way of constructing the query.
 			if len(fields) > 1 {
@@ -298,7 +337,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 						} else {
 							// Otherwise we just use a regular match query.
 							queries = append(queries, m{
-								"match": m{
+								matchType: m{
 									field: queryString,
 								},
 							})
@@ -323,7 +362,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 				} else {
 					// Otherwise we just use a regular match query.
 					query = m{
-						"match": m{
+						matchType: m{
 							fields[0]: queryString,
 						},
 					}
@@ -357,8 +396,8 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 }
 
 // createAdjacentClause attempts to create an Elasticsearch version of the `adj` operator in Pubmed/Medline (slop).
-func (q ElasticsearchQuery) createAdjacentClause(field string) []interface{} {
-	var innerClauses []interface{}
+func (q ElasticsearchQuery) createAdjacentClause(field string) map[string]interface{} {
+	innerClauses := make(map[string]interface{})
 
 	// Create the wildcard query.
 	if strings.ContainsAny(q.queryString, "*?$") {
@@ -383,15 +422,15 @@ func (q ElasticsearchQuery) createAdjacentClause(field string) []interface{} {
 					})
 				}
 			}
-			innerClauses = append(innerClauses, m{
+			innerClauses = m{
 				"span_near": m{
 					"clauses":  spanTerms,
 					"in_order": true,
 					"slop":     1,
 				},
-			})
+			}
 		} else {
-			innerClauses = append(innerClauses, m{
+			innerClauses = m{
 				"span_multi": m{
 					"match": m{
 						"wildcard": m{
@@ -399,7 +438,7 @@ func (q ElasticsearchQuery) createAdjacentClause(field string) []interface{} {
 						},
 					},
 				},
-			})
+			}
 		}
 	} else if strings.Contains(q.queryString, " ") {
 		var spanTerms []m
@@ -410,16 +449,16 @@ func (q ElasticsearchQuery) createAdjacentClause(field string) []interface{} {
 				},
 			})
 		}
-		innerClauses = append(innerClauses, m{
+		innerClauses = m{
 			"span_near": m{
 				"clauses":  spanTerms,
 				"in_order": true,
 				"slop":     1,
 			},
-		})
+		}
 	} else {
 		// Create a term matching query.
-		innerClauses = append(innerClauses, m{
+		innerClauses = m{
 			"span_multi": m{
 				"match": m{
 					"prefix": m{
@@ -427,7 +466,7 @@ func (q ElasticsearchQuery) createAdjacentClause(field string) []interface{} {
 					},
 				},
 			},
-		})
+		}
 	}
 	return innerClauses
 }

@@ -271,7 +271,7 @@ func (p MedlineTransformer) ConvertInfixToPrefix(infix []string) []string {
 func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, mapping map[string][]string) ir.BooleanQuery {
 	line += "\n"
 
-	stack := []string{}
+	var stack []string
 
 	keyword := ""
 	currentToken := ""
