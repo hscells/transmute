@@ -174,6 +174,7 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 
 	if len(q.grouping) >= 3 && q.grouping[0:3] == "adj" {
 		adjClauses := map[string][]interface{}{}
+		nesClauses := map[string][]interface{}{}
 		var clauses []interface{}
 
 		// Extract the size of the adjacency (slop size)
@@ -207,19 +208,21 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 			// Create the clauses inside one side of the span.
 			for _, query := range child.queries {
 				for _, field := range query.fields {
-					clauses = append(clauses, m{
+					c := m{
 						"span_near": m{
 							"clauses":  append(adjClauses[field], query.createAdjacentClause(field)),
 							"slop":     slopSize,
 							"in_order": false,
 						},
-					})
+					}
+					clauses = append(clauses, c)
+					nesClauses[field] = append(nesClauses[field], c)
 				}
 			}
 		}
 
 		var query map[string]interface{}
-		if len(clauses) == 0 {
+		if len(clauses) == 0 { // There were no "nested" clauses, only terms.
 			var ac []interface{}
 			for _, q := range adjClauses {
 				ac = append(ac, m{
@@ -232,10 +235,26 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 			}
 			query = m{
 				"bool": m{
-					"must": ac,
+					"should": ac,
 				},
 			}
-		} else {
+		} else if len(clauses) > 0 && len(adjClauses) == 0 { // only "nested" clauses, no terms.
+			var ac []interface{}
+			for _, q := range nesClauses {
+				ac = append(ac, m{
+					"span_near": m{
+						"clauses":  q,
+						"slop":     slopSize,
+						"in_order": false,
+					},
+				})
+			}
+			query = m{
+				"bool": m{
+					"should": ac,
+				},
+			}
+		} else { // mixture of "nested" clauses and terms.
 			query = m{
 				"bool": m{
 					"should": []interface{}{

@@ -83,7 +83,8 @@ func (c CQRTransformer) TransformNested(query string, mapping map[string][]strin
 	var queryRep map[string]interface{}
 	err := json.Unmarshal(bytes.NewBufferString(query).Bytes(), &queryRep)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		return ir.BooleanQuery{}
 	}
 
 	return transformNested(queryRep, mapping)
