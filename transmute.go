@@ -111,6 +111,7 @@ func main() {
 		"ir":            backend.NewIrBackend(),
 		"cqr":           backend.NewCQRBackend(),
 		"terrier":       backend.NewTerrierBackend(),
+		"medline":       backend.NewMedlineBackend(),
 	}
 
 	// Grab the parser.
