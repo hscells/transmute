@@ -38,7 +38,13 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 	for _, keyword := range q.Keywords {
 		k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
 			SetOption("exploded", keyword.Exploded).
-			SetOption("truncated", keyword.Truncated)
+			SetOption("truncated", keyword.Truncated).(cqr.Keyword)
+		if !keyword.Exploded {
+			delete(k.Options, "exploded")
+		}
+		if !keyword.Truncated {
+			delete(k.Options, "truncated")
+		}
 		children = append(children, k)
 	}
 	for _, child := range q.Children {
@@ -54,7 +60,13 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 		for _, keyword := range child.Keywords {
 			k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
 				SetOption("exploded", keyword.Exploded).
-				SetOption("truncated", keyword.Truncated)
+				SetOption("truncated", keyword.Truncated).(cqr.Keyword)
+			if !keyword.Exploded {
+				delete(k.Options, "exploded")
+			}
+			if !keyword.Truncated {
+				delete(k.Options, "truncated")
+			}
 			subChildren = append(subChildren, k)
 		}
 
