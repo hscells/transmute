@@ -344,7 +344,7 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 	return queryGroup
 }
 
-// reversePreservingCombiningCharacters interprets its argument as UTF-8
+// ReversePreservingCombiningCharacters interprets its argument as UTF-8
 // and ignores bytes that do not form valid UTF-8.  return value is UTF-8.
 // https://rosettacode.org/wiki/Reverse_a_string#Go
 func ReversePreservingCombiningCharacters(s string) string {

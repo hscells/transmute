@@ -70,7 +70,6 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 			}
 			qs = fmt.Sprintf("%v.%v.", qs, mf)
 		}
-		qs = strings.Replace(qs, "~", "$", -1)
 		repr += fmt.Sprintf("%v. %v\n", level, qs)
 		op = append(op, strconv.Itoa(level))
 		level += 1

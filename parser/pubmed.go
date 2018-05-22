@@ -10,29 +10,33 @@ import (
 type PubMedTransformer struct{}
 
 var PubMedFieldMapping = map[string][]string{
-	"Mesh":           {"mesh_headings"},
-	"mesh":           {"mesh_headings"},
-	"MeSH":           {"mesh_headings"},
-	"MESH":           {"mesh_headings"},
-	"MeSH Terms":     {"mesh_headings"},
-	"Title/Abstract": {"title", "text"},
-	"Title":          {"title"},
-	"Abstract":       {"text"},
-	"Publication":    {"pub_type"},
-	"mh":             {"mesh_headings"},
-	"sh":             {"mesh_headings"},
-	"tw":             {"title", "text"},
-	"ti":             {"title"},
-	"pt":             {"pub_type"},
-	"sb":             {"pub_status"},
-	"tiab":           {"title", "text"},
-	"default":        {"text"},
+	"Mesh":                 {"mesh_headings"},
+	"mesh":                 {"mesh_headings"},
+	"MeSH":                 {"mesh_headings"},
+	"MESH":                 {"mesh_headings"},
+	"MeSH Subheading":      {"mesh_headings"},
+	"MeSH Terms":           {"mesh_headings"},
+	"Title/Abstract":       {"title", "text"},
+	"Title":                {"title"},
+	"Abstract":             {"text"},
+	"Publication":          {"publication_types"},
+	"Publication Type":     {"publication_types"},
+	"All Fields":           {"title", "text", "mesh_headings", "pub_type"},
+	"Date - Entrez : 3000": {"pubdate"},
+	"mh":                   {"mesh_headings"},
+	"sh":                   {"mesh_headings"},
+	"tw":                   {"title", "text"},
+	"ti":                   {"title"},
+	"pt":                   {"pub_type"},
+	"sb":                   {"pub_status"},
+	"tiab":                 {"title", "text"},
+	"default":              {"text"},
 }
 
 func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
 	var queryString string
 	var fields []string
-	exploded := true
+	exploded := false
 
 	if strings.ContainsRune(query, '[') {
 		// This query string most likely has a field.
@@ -40,6 +44,11 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 		queryString = parts[0]
 		// This might be a field, but needs some processing.
 		possibleField := strings.Replace(parts[1], "]", "", -1)
+
+		// Set the exploded option on the keyword.
+		if strings.Contains(strings.ToLower(possibleField), "mesh") {
+			exploded = true
+		}
 
 		// PubMed fields have this weird thing where they specify the mesh explosion in the field.
 		// This is handled in this step.
@@ -71,7 +80,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 	}
 	queryString = strings.Replace(queryString, "$", "*", -1)
 	queryString = strings.Replace(queryString, "?", "*", -1)
-	queryString = strings.Replace(queryString, "*", " ", -1)
+	//queryString = strings.Replace(queryString, "*", " ", -1)
 
 	queryString = strings.TrimSpace(queryString)
 
@@ -84,17 +93,53 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 }
 
 func (t PubMedTransformer) TransformNested(query string, mapping map[string][]string) ir.BooleanQuery {
-	var fieldsString string
-	for i := len(query) - 1; i > 0; i-- {
-		if query[i] == ')' {
-			break
-		}
-		fieldsString += string(query[i])
-	}
-	fieldsString = ReversePreservingCombiningCharacters(fieldsString)
-	query = strings.Replace(query, fieldsString, "", 1)
-
+	query = ReversePreservingCombiningCharacters(reverse(query))
 	return t.ParseInfixKeywords(query, mapping)
+}
+
+func (t PubMedTransformer) RemoveParenthesis(expr []string) []string {
+	r := make([]string, len(expr))
+	s := make([]string, len(expr))
+
+	copy(r, expr)
+	copy(s, expr)
+
+	var st []int
+	i := 0
+	for i < len(s) {
+		if s[i] == "(" {
+			if s[i+1] == "(" {
+				st = append(st, -i)
+			} else {
+				st = append(st, i)
+			}
+			i++
+		} else if s[i] != ")" && s[i] != "(" {
+			i++
+		} else if s[i] == ")" {
+			top := st[len(st)-1]
+			if s[i-1] == ")" && top < 0 {
+				r[-top] = "$"
+				r[i] = "$"
+				st = st[:len(st)-1]
+			} else if s[i-1] == ")" && top > 0 {
+				//panic("invalid query")
+			} else if s[i-1] != ")" && top > 0 {
+				st = st[:len(st)-1]
+			}
+			i++
+		}
+	}
+
+	var result []string
+	for i := 0; i < len(r); i++ {
+		if r[i] == "$" {
+			continue
+		}
+		result = append(result, r[i])
+	}
+
+	return result
 }
 
 // ParseInfixKeywords parses an infix expression containing keywords separated by operators into an infix expression,
@@ -102,7 +147,7 @@ func (t PubMedTransformer) TransformNested(query string, mapping map[string][]st
 func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]string) ir.BooleanQuery {
 	line += "\n"
 
-	stack := []string{}
+	var stack []string
 
 	keyword := ""
 	currentToken := ""
@@ -150,6 +195,7 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 				stack = append(stack, strings.TrimSpace(keyword+" "+previousToken+" "+currentToken))
 				keyword = ""
 				currentToken = ""
+				previousToken = ""
 			}
 			stack = append(stack, ")")
 			continue
@@ -165,11 +211,55 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 	if len(endTokens) > 0 {
 		stack = append(stack, endTokens)
 	}
+
 	prefix := t.ConvertInfixToPrefix(stack)
 	if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-		prefix = prefix[1: len(prefix)-1]
+		prefix = prefix[1 : len(prefix)-1]
 	}
-	_, queryGroup := t.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, mapping)
+
+	prefix = append([]string{"("}, prefix...)
+	prefix = append(prefix, ")")
+
+	//fmt.Println(prefix)
+	prefix = t.RemoveParenthesis(prefix)
+
+	// Remove redundancy.
+	var p []string
+	var prev string
+	for _, token := range prefix {
+		if prev == token && token != ")" && token != "(" {
+			continue
+		}
+		prev = token
+		p = append(p, token)
+	}
+
+	var l []string
+	var tmp []string
+	inside := false
+	for _, token := range p {
+		if prev == "(" && token == "(" && !inside {
+			inside = true
+			prev = token
+			continue
+		}
+		if inside {
+			if prev == ")" && token == ")" {
+				l = append(l, tmp...)
+				tmp = []string{}
+				prev = token
+				inside = false
+				continue
+			}
+			tmp = append(tmp, token)
+			prev = token
+		} else {
+			l = append(l, token)
+			prev = token
+		}
+	}
+
+	_, queryGroup := t.TransformPrefixGroupToQueryGroup(l, ir.BooleanQuery{}, mapping)
 	return queryGroup
 }
 
@@ -177,27 +267,22 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 // Shunting-yard algorithm (https://en.wikipedia.org/wiki/Shunting-yard_algorithm).
 func (t PubMedTransformer) ConvertInfixToPrefix(infix []string) []string {
 	// The stack contains some intermediate values
-	stack := []string{}
+	var stack []string
 	// The result contains the actual expression
-	result := []string{}
+	var result []string
 
 	precedence := map[string]int{
-		"and":  1,
-		"or":   0,
-		"not":  1,
-		"adj":  1,
-		"adj2": 1,
-		"adj3": 1,
-		"adj4": 1,
-		"adj5": 1,
-		"adj6": 1,
-		"adj7": 1,
-		"adj8": 1,
+		"and": 0,
+		"or":  1,
+		"not": 2,
 	}
 
 	// The algorithm is slightly modified to also store the brackets in the result
 	for i := len(infix) - 1; i >= 0; i-- {
 		token := infix[i]
+		if len(token) == 0 {
+			continue
+		}
 		if token == ")" {
 			stack = append(stack, token)
 			result = append(result, token)
