@@ -156,7 +156,6 @@ func (q ElasticsearchBooleanQuery) Representation() (interface{}, error) {
 		"query": m{
 			"constant_score": m{
 				"filter": f,
-				"boost":  1.0,
 			},
 		},
 	}, nil
@@ -419,11 +418,13 @@ func (q ElasticsearchQuery) createAdjacentClause(field string) map[string]interf
 	innerClauses := make(map[string]interface{})
 
 	// Create the wildcard query.
-	if strings.ContainsAny(q.queryString, "*?$") {
+	if strings.ContainsAny(q.queryString, "*?$~") {
+		q.queryString = strings.Replace(q.queryString, "?", "*", -1)
+		q.queryString = strings.Replace(q.queryString, "$", "*", -1)
 		if strings.Contains(q.queryString, " ") {
 			var spanTerms []m
 			for _, term := range strings.Split(q.queryString, " ") {
-				if strings.ContainsAny(term, "*?$") {
+				if strings.ContainsAny(term, "*?$~") {
 					spanTerms = append(spanTerms, m{
 						"span_multi": m{
 							"match": m{
