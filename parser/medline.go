@@ -116,7 +116,7 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 	}
 
 	truncated := false
-	if strings.ContainsAny(queryString, "*$?") {
+	if strings.ContainsAny(queryString, "*$?~") {
 		truncated = true
 	}
 
@@ -337,7 +337,7 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 	prefix := p.ConvertInfixToPrefix(stack)
 	if len(prefix) > 0 {
 		if prefix[0] == "(" && prefix[len(prefix)-1] == ")" {
-			prefix = prefix[1: len(prefix)-1]
+			prefix = prefix[1 : len(prefix)-1]
 		}
 	}
 	_, queryGroup := p.TransformPrefixGroupToQueryGroup(prefix, ir.BooleanQuery{}, fields, mapping)

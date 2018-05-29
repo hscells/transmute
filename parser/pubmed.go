@@ -21,7 +21,7 @@ var PubMedFieldMapping = map[string][]string{
 	"Abstract":             {"text"},
 	"Publication":          {"publication_types"},
 	"Publication Type":     {"publication_types"},
-	"All Fields":           {"title", "text", "mesh_headings", "pub_type"},
+	"All Fields":           {"title", "text", "mesh_headings"},
 	"Date - Entrez : 3000": {"pubdate"},
 	"mh":                   {"mesh_headings"},
 	"sh":                   {"mesh_headings"},
@@ -75,7 +75,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 
 	// PubMed uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
 	truncated := false
-	if strings.ContainsAny(queryString, "*$?") {
+	if strings.ContainsAny(queryString, "*$?~") {
 		truncated = true
 	}
 	queryString = strings.Replace(queryString, "$", "*", -1)
