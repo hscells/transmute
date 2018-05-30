@@ -120,8 +120,9 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 		truncated = true
 	}
 
-	// Medline uses $ to represent the stem of a word. In Elasticsearch it's a `~`.
-	queryString = strings.Replace(queryString, "$", "~", -1)
+	// Medline uses $ to represent the stem of a word. In Elasticsearch it's a `*`.
+	queryString = strings.Replace(queryString, "$", "*", -1)
+	queryString = strings.Replace(queryString, "~", "*", -1)
 
 	queryString = strings.TrimSpace(queryString)
 

@@ -80,6 +80,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 	}
 	queryString = strings.Replace(queryString, "$", "*", -1)
 	queryString = strings.Replace(queryString, "?", "*", -1)
+	queryString = strings.Replace(queryString, "~", "*", -1)
 	//queryString = strings.Replace(queryString, "*", " ", -1)
 
 	queryString = strings.TrimSpace(queryString)
