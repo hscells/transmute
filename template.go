@@ -35,4 +35,13 @@ var (
 			},
 			RequiresLexing: false,
 		})
+	Cqr2Pubmed = pipeline.NewPipeline(
+		parser.NewCQRParser(),
+		backend.NewPubmedBackend(),
+		pipeline.TransmutePipelineOptions{
+			LexOptions: lexer.LexOptions{
+				FormatParenthesis: false,
+			},
+			RequiresLexing: false,
+		})
 )
