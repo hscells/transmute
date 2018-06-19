@@ -6,12 +6,13 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	"fmt"
+	"sort"
 )
 
 var MedlineFieldMapping = map[string][]string{
-	"mp":      {"mesh_headings", "title", "text"},
-	"af":      {"title", "text", "mesh_headings"},
-	"tw":      {"title", "text"},
+	"mp":      {"mesh_headings", "text", "title"},
+	"tw":      {"text", "title"},
 	"nm":      {"text", "mesh_headings"},
 	"ab":      {"text"},
 	"ti":      {"title"},
@@ -44,6 +45,7 @@ func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]
 	for _, field := range parts {
 		mappedFields = append(mappedFields, mapping[field]...)
 	}
+	sort.Strings(mappedFields)
 	return mappedFields
 }
 
@@ -107,9 +109,9 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 	} else {
 		// Otherwise try to parse a regular looking query.
 		parts := strings.Split(query, ".")
-		if len(parts) == 3 {
-			queryString = parts[0]
-			fields = p.TransformFields(parts[1], mapping)
+		if len(parts) > 1 {
+			queryString = strings.Join(parts[0:len(parts)-2], ".")
+			fields = p.TransformFields(parts[len(parts)-2], mapping)
 		} else {
 			queryString = query
 		}
@@ -120,7 +122,6 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 		truncated = true
 	}
 
-	// Medline uses $ to represent the stem of a word. In Elasticsearch it's a `*`.
 	queryString = strings.Replace(queryString, "$", "*", -1)
 	queryString = strings.Replace(queryString, "~", "*", -1)
 
@@ -166,6 +167,7 @@ func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, qu
 						foundFields = f
 					}
 				}
+
 				prefix = prefix[1:]
 			}
 		}
@@ -179,6 +181,10 @@ func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, qu
 	} else {
 		if len(token) > 0 {
 			k := p.TransformSingle(token, mapping)
+			if len(k.Fields) == 0 && prefix[len(prefix)-1] != ")" {
+				token = fmt.Sprintf("%s%s", token, prefix[len(prefix)-1])
+				k = p.TransformSingle(token, mapping)
+			}
 			// Add a default field to the keyword if none have been defined
 			//if len(k.Fields) == 0 && len(fields) > 0 {
 			//	k.Fields = fields
@@ -287,9 +293,11 @@ func (p MedlineTransformer) ParseInfixKeywords(line string, fields []string, map
 		// Here we attempt to parse a keyword that is quoted.
 		if char == '"' && !insideQuote {
 			insideQuote = true
+			currentToken += `"`
 			continue
 		} else if char == '"' && insideQuote {
 			insideQuote = false
+			currentToken += `"`
 			continue
 		} else if insideQuote {
 			currentToken += string(char)
