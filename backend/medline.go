@@ -7,6 +7,7 @@ import (
 	"strings"
 	"strconv"
 	"sort"
+	"github.com/xtgo/set"
 )
 
 type MedlineBackend struct {
@@ -55,17 +56,19 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 			qs += "/"
 		} else {
 			mapping := map[string][]string{
-				"mp": {"mesh_headings", "text", "title"},
-				"nm": {"mesh_headings", "text"},
-				"tw": {"text", "title"},
-				"ab": {"text"},
-				"ti": {"title"},
-				"sh": {"mesh_headings"},
-				"pt": {"publication_types"},
-				"ed": {"pubdate"},
-				"au": {"author"},
+				"ti,ab,sh": {"mesh_headings", "text", "title"},
+				"ab,sh":    {"mesh_headings", "text"},
+				"ti,sh":    {"mesh_headings", "title"},
+				"tw":       {"text", "title"},
+				"ab":       {"text"},
+				"ti":       {"title"},
+				"sh":       {"mesh_headings"},
+				"pt":       {"publication_types"},
+				"ed":       {"pubdate"},
+				"au":       {"author"},
 			}
 			sort.Strings(keyword.Fields)
+			keyword.Fields = set.Strings(keyword.Fields)
 			for f, fields := range mapping {
 				if len(fields) != len(keyword.Fields) {
 					continue
