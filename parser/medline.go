@@ -8,28 +8,29 @@ import (
 	"unicode/utf8"
 	"fmt"
 	"sort"
+	"github.com/hscells/transmute/fields"
 )
 
 var MedlineFieldMapping = map[string][]string{
-	"mp":      {"mesh_headings", "text", "title"},
-	"tw":      {"text", "title"},
-	"nm":      {"text", "mesh_headings"},
-	"ab":      {"text"},
-	"ti":      {"title"},
-	"ot":      {"title"},
-	"sh":      {"mesh_headings"},
-	"px":      {"mesh_headings"},
-	"rs":      {"mesh_headings"},
-	"fs":      {"mesh_headings"},
-	"rn":      {"mesh_headings"},
-	"kf":      {"mesh_headings"},
-	"sb":      {"mesh_headings"},
-	"mh":      {"mesh_headings"},
-	"pt":      {"publication_types"},
-	"em":      {"pubdate"},
-	"ed":      {"pubdate"},
-	"au":      {"author"},
-	"default": {"text"},
+	"mp":      {fields.MeshHeadings, fields.Abstract, fields.Title},
+	"tw":      {fields.Abstract, fields.Title},
+	"nm":      {fields.Abstract, fields.MeshHeadings},
+	"ab":      {fields.Abstract},
+	"ti":      {fields.Title},
+	"ot":      {fields.Title},
+	"sh":      {fields.MeshHeadings},
+	"px":      {fields.MeshHeadings},
+	"rs":      {fields.MeshHeadings},
+	"fs":      {fields.FloatingMeshHeadings},
+	"rn":      {fields.MeshHeadings},
+	"kf":      {fields.MeshHeadings},
+	"sb":      {fields.MeshHeadings},
+	"mh":      {fields.MeshHeadings},
+	"pt":      {fields.PublicationType},
+	"em":      {fields.PublicationDate},
+	"ed":      {fields.PublicationDate},
+	"au":      {fields.Authors},
+	"default": {fields.Abstract, fields.Title},
 }
 
 var adjMatchRegexp, _ = regexp.Compile("^adj[0-9]*$")
@@ -71,25 +72,25 @@ func (p MedlineTransformer) TransformNested(query string, mapping map[string][]s
 	fieldsString = ReversePreservingCombiningCharacters(fieldsString)
 	query = strings.Replace(query, fieldsString, "", 1)
 
-	var fields []string
+	var queryFields []string
 	fieldsString = strings.Replace(fieldsString, ".", "", -1)
 	for _, field := range strings.Split(fieldsString, ",") {
-		fields = append(fields, mapping[field]...)
+		queryFields = append(queryFields, mapping[field]...)
 	}
 
 	// Add a default field to the keyword if none have been defined
-	if len(fields) == 0 {
-		fields = mapping["default"]
+	if len(queryFields) == 0 {
+		queryFields = mapping["default"]
 	}
 
-	return p.ParseInfixKeywords(query, fields, mapping)
+	return p.ParseInfixKeywords(query, queryFields, mapping)
 }
 
 // TransformSingle implements the transformation of a single, stand-alone query. This is called from TransformNested
 // to transform the inner queries.
 func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
 	var queryString string
-	var fields []string
+	var queryFields []string
 	exploded := false
 
 	// Trim the query string to prevent whitespace such as newlines interfering with string processing.
@@ -105,13 +106,13 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 			queryString = query
 		}
 		queryString = strings.Replace(queryString, "/", "", -1)
-		fields = mapping["sh"]
+		queryFields = mapping["sh"]
 	} else {
 		// Otherwise try to parse a regular looking query.
 		parts := strings.Split(query, ".")
 		if len(parts) > 1 {
 			queryString = strings.Join(parts[0:len(parts)-2], ".")
-			fields = p.TransformFields(parts[len(parts)-2], mapping)
+			queryFields = p.TransformFields(parts[len(parts)-2], mapping)
 		} else {
 			queryString = query
 		}
@@ -129,7 +130,7 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 
 	return ir.Keyword{
 		QueryString: queryString,
-		Fields:      fields,
+		Fields:      queryFields,
 		Exploded:    exploded,
 		Truncated:   truncated,
 	}

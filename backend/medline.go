@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sort"
 	"github.com/xtgo/set"
+	"github.com/hscells/transmute/fields"
 )
 
 type MedlineBackend struct {
@@ -52,30 +53,31 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 		if keyword.Exploded {
 			qs = "exp " + qs
 		}
-		if len(keyword.Fields) == 1 && keyword.Fields[0] == "mesh_headings" {
+		if len(keyword.Fields) == 1 && keyword.Fields[0] == fields.MeshHeadings {
 			qs += "/"
 		} else {
 			mapping := map[string][]string{
-				"ti,ab,sh": {"mesh_headings", "text", "title"},
-				"ab,sh":    {"mesh_headings", "text"},
-				"ti,sh":    {"mesh_headings", "title"},
-				"tw":       {"text", "title"},
-				"ab":       {"text"},
-				"ti":       {"title"},
-				"sh":       {"mesh_headings"},
-				"pt":       {"publication_types"},
-				"ed":       {"pubdate"},
-				"au":       {"author"},
+				"ti,ab,sh": {fields.MeshHeadings, fields.Abstract, fields.Title},
+				"ab,sh":    {fields.MeshHeadings, fields.Abstract},
+				"ti,sh":    {fields.MeshHeadings, fields.Title},
+				"tw":       {fields.Abstract, fields.Title},
+				"fs":       {fields.FloatingMeshHeadings},
+				"ab":       {fields.Abstract},
+				"ti":       {fields.Title},
+				"sh":       {fields.MeshHeadings},
+				"pt":       {fields.PublicationType},
+				"ed":       {fields.PublicationDate},
+				"au":       {fields.Authors},
 			}
 			sort.Strings(keyword.Fields)
 			keyword.Fields = set.Strings(keyword.Fields)
-			for f, fields := range mapping {
-				if len(fields) != len(keyword.Fields) {
+			for f, mappingFields := range mapping {
+				if len(mappingFields) != len(keyword.Fields) {
 					continue
 				}
 				match := true
 				for i, field := range keyword.Fields {
-					if field != fields[i] {
+					if field != mappingFields[i] {
 						match = false
 					}
 				}

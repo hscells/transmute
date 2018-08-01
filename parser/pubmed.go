@@ -5,37 +5,43 @@ import (
 	"log"
 	"strings"
 	"unicode"
+	"github.com/hscells/transmute/fields"
 )
 
 type PubMedTransformer struct{}
 
 var PubMedFieldMapping = map[string][]string{
-	"Mesh":                 {"mesh_headings"},
-	"mesh":                 {"mesh_headings"},
-	"MeSH":                 {"mesh_headings"},
-	"MESH":                 {"mesh_headings"},
-	"MeSH Subheading":      {"mesh_headings"},
-	"MeSH Terms":           {"mesh_headings"},
-	"Title/Abstract":       {"title", "text"},
-	"Title":                {"title"},
-	"Abstract":             {"text"},
-	"Publication":          {"publication_types"},
-	"Publication Type":     {"publication_types"},
-	"All Fields":           {"title", "text", "mesh_headings"},
-	"Date - Entrez : 3000": {"pubdate"},
-	"mh":                   {"mesh_headings"},
-	"sh":                   {"mesh_headings"},
-	"tw":                   {"title", "text"},
-	"ti":                   {"title"},
-	"pt":                   {"pub_type"},
-	"sb":                   {"pub_status"},
-	"tiab":                 {"title", "text"},
-	"default":              {"text"},
+	"Mesh":                 {fields.MeshHeadings},
+	"mesh":                 {fields.MeshHeadings},
+	"MeSH":                 {fields.MeshHeadings},
+	"MESH":                 {fields.MeshHeadings},
+	"MeSH Terms":           {fields.MeshHeadings},
+	"Mesh Terms":           {fields.MeshHeadings},
+	"MAJR":                 {fields.MajorFocusMeshHeading},
+	"MeSH Major Topic":     {fields.MajorFocusMeshHeading},
+	"MeSH Subheading":      {fields.FloatingMeshHeadings},
+	"Subheading":           {fields.FloatingMeshHeadings},
+	"Title/Abstract":       {fields.Title, fields.Abstract},
+	"Title":                {fields.Title},
+	"Abstract":             {fields.Abstract},
+	"Publication":          {fields.PublicationType},
+	"Publication Type":     {fields.PublicationType},
+	"Journal":              {fields.Journal},
+	"All Fields":           {fields.Title, fields.Abstract, fields.MeshHeadings},
+	"Date - Entrez : 3000": {fields.PublicationDate},
+	"mh":                   {fields.MeshHeadings},
+	"sh":                   {fields.FloatingMeshHeadings},
+	"tw":                   {fields.Title, fields.Abstract},
+	"ti":                   {fields.Title},
+	"pt":                   {fields.PublicationType},
+	"sb":                   {fields.PublicationStatus},
+	"tiab":                 {fields.Title, fields.Abstract},
+	"default":              {fields.Title, fields.Abstract},
 }
 
 func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
 	var queryString string
-	var fields []string
+	var queryFields []string
 	exploded := false
 
 	if strings.ContainsRune(query, '[') {
@@ -59,7 +65,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 
 		// If we are unable to map the field then we can explode.
 		if field, ok := mapping[possibleField]; ok {
-			fields = field
+			queryFields = field
 		} else {
 			log.Fatalf("the field `%v` does not have a mapping defined", possibleField)
 		}
@@ -68,9 +74,9 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 	}
 
 	// Add a default field to the keyword if none have been defined.
-	if len(fields) == 0 {
-		log.Printf("using default field (%v) since %v has no fields", mapping["default"], query)
-		fields = mapping["default"]
+	if len(queryFields) == 0 {
+		log.Printf("using default field (%v) since %v has no queryFields", mapping["default"], query)
+		queryFields = mapping["default"]
 	}
 
 	// PubMed uses $ to represent the stem of a word. Instead let's just replace it by the wildcard operator.
@@ -87,7 +93,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 
 	return ir.Keyword{
 		QueryString: queryString,
-		Fields:      fields,
+		Fields:      queryFields,
 		Exploded:    exploded,
 		Truncated:   truncated,
 	}

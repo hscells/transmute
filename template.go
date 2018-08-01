@@ -5,6 +5,7 @@ import (
 	"github.com/hscells/transmute/parser"
 	"github.com/hscells/transmute/backend"
 	"github.com/hscells/transmute/lexer"
+	"github.com/hscells/cqr"
 )
 
 var (
@@ -45,3 +46,17 @@ var (
 			RequiresLexing: false,
 		})
 )
+
+func CompilePubmed2Cqr(q string) (cqr.CommonQueryRepresentation, error) {
+	bq, err := Pubmed2Cqr.Execute(q)
+	if err != nil {
+		return nil, err
+	}
+
+	repr, err := bq.Representation()
+	if err != nil {
+		return nil, err
+	}
+
+	return repr.(cqr.CommonQueryRepresentation), nil
+}

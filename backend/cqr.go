@@ -37,13 +37,13 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 	var children []cqr.CommonQueryRepresentation
 	for _, keyword := range q.Keywords {
 		k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
-			SetOption("exploded", keyword.Exploded).
-			SetOption("truncated", keyword.Truncated).(cqr.Keyword)
+			SetOption(cqr.ExplodedString, keyword.Exploded).
+			SetOption(cqr.TruncatedString, keyword.Truncated).(cqr.Keyword)
 		if !keyword.Exploded {
-			delete(k.Options, "exploded")
+			delete(k.Options, cqr.ExplodedString)
 		}
 		if !keyword.Truncated {
-			delete(k.Options, "truncated")
+			delete(k.Options, cqr.TruncatedString)
 		}
 		children = append(children, k)
 	}
@@ -59,13 +59,13 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 		}
 		for _, keyword := range child.Keywords {
 			k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
-				SetOption("exploded", keyword.Exploded).
-				SetOption("truncated", keyword.Truncated).(cqr.Keyword)
+				SetOption(cqr.ExplodedString, keyword.Exploded).
+				SetOption(cqr.TruncatedString, keyword.Truncated).(cqr.Keyword)
 			if !keyword.Exploded {
-				delete(k.Options, "exploded")
+				delete(k.Options, cqr.ExplodedString)
 			}
 			if !keyword.Truncated {
-				delete(k.Options, "truncated")
+				delete(k.Options, cqr.TruncatedString)
 			}
 			subChildren = append(subChildren, k)
 		}
@@ -85,7 +85,7 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 	if len(q.Operator) == 0 && len(q.Children) == 1 {
 		var keywords []cqr.CommonQueryRepresentation
 		for _, kw := range q.Children[0].Keywords {
-			keywords = append(keywords, cqr.NewKeyword(kw.QueryString, kw.Fields...).SetOption("exploded", kw.Exploded).SetOption("truncated", kw.Truncated))
+			keywords = append(keywords, cqr.NewKeyword(kw.QueryString, kw.Fields...).SetOption(cqr.ExplodedString, kw.Exploded).SetOption(cqr.TruncatedString, kw.Truncated))
 		}
 
 		for _, child := range q.Children[0].Children {

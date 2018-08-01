@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"github.com/hscells/transmute/ir"
 	"log"
+	"github.com/hscells/cqr"
+	"github.com/hscells/transmute/fields"
 )
 
 // CQRTransformer is an implementation of a query transformer for CQR queries.
@@ -72,7 +74,7 @@ func transformNested(rep map[string]interface{}, mapping map[string][]string) ir
 			}
 		}
 	} else {
-		q = ir.BooleanQuery{Operator: "or", Keywords: []ir.Keyword{transformSingle(rep, mapping)}}
+		q = ir.BooleanQuery{Operator: cqr.OR, Keywords: []ir.Keyword{transformSingle(rep, mapping)}}
 	}
 
 	return q
@@ -93,5 +95,5 @@ func (c CQRTransformer) TransformNested(query string, mapping map[string][]strin
 // NewCQRParser creates a new parser for CQR queries. This parser makes a lot of assumptions as it assumes the
 // structure of this query is perfect.
 func NewCQRParser() QueryParser {
-	return QueryParser{Parser: CQRTransformer{}, FieldMapping: map[string][]string{"default": {"abstract"}}}
+	return QueryParser{Parser: CQRTransformer{}, FieldMapping: map[string][]string{"default": {fields.Title, fields.Abstract}}}
 }

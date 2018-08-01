@@ -7,6 +7,7 @@ import (
 	"github.com/hscells/cqr"
 	"bytes"
 	"sort"
+	"github.com/hscells/transmute/fields"
 )
 
 type PubmedBackend struct {
@@ -68,28 +69,37 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 			buff.WriteRune(char)
 		}
 
-		if len(keyword.Fields) == 1 && keyword.Fields[0] == "mesh_headings" {
-			mf = "Mesh"
-			if !keyword.Exploded {
+		if len(keyword.Fields) == 1 {
+			if keyword.Fields[0] == fields.MeshHeadings {
+				mf = "Mesh Terms"
+			} else if keyword.Fields[0] == fields.FloatingMeshHeadings {
+				mf = "Subheading"
+			} else if keyword.Fields[0] == fields.MajorFocusMeshHeading {
+				mf = "MeSH Major Topic"
+			}
+			if len(mf) > 0 && !keyword.Exploded {
 				mf += ":noexp"
 			}
 		} else {
 			mapping := map[string][]string{
-				"Mesh":             {"mesh_headings"},
-				"Title/Abstract":   {"text", "title"},
-				"Title":            {"title"},
-				"Text Word":        {"text"},
-				"Publication Type": {"publication_types"},
-				"Publication Date": {"pubdate"},
+				"Mesh Terms":       {fields.MeshHeadings},
+				"Subheading":       {fields.FloatingMeshHeadings},
+				"MeSH Major Topic": {fields.MajorFocusMeshHeading},
+				"Title/Abstract":   {fields.Abstract, fields.Title},
+				"Title":            {fields.Title},
+				"Text Word":        {fields.Abstract},
+				"Publication Type": {fields.PublicationType},
+				"Publication Date": {fields.PublicationDate},
+				"Journal":          {fields.Journal},
 			}
 			sort.Strings(keyword.Fields)
-			for f, fields := range mapping {
-				if len(fields) != len(keyword.Fields) {
+			for f, mappingFields := range mapping {
+				if len(mappingFields) != len(keyword.Fields) {
 					continue
 				}
 				match := true
 				for i, field := range keyword.Fields {
-					if field != fields[i] {
+					if field != mappingFields[i] {
 						match = false
 					}
 				}
