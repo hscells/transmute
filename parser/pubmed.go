@@ -17,6 +17,7 @@ var PubMedFieldMapping = map[string][]string{
 	"MESH":                 {fields.MeshHeadings},
 	"MeSH Terms":           {fields.MeshHeadings},
 	"Mesh Terms":           {fields.MeshHeadings},
+	"mesh terms":           {fields.MeshHeadings},
 	"MAJR":                 {fields.MajorFocusMeshHeading},
 	"MeSH Major Topic":     {fields.MajorFocusMeshHeading},
 	"MeSH Subheading":      {fields.FloatingMeshHeadings},
@@ -67,7 +68,8 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 		if field, ok := mapping[possibleField]; ok {
 			queryFields = field
 		} else {
-			log.Fatalf("the field `%v` does not have a mapping defined", possibleField)
+			log.Printf("the field `%v` does not have a mapping defined\n", possibleField)
+			queryFields = mapping["default"]
 		}
 	} else {
 		queryString = query
@@ -75,7 +77,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 
 	// Add a default field to the keyword if none have been defined.
 	if len(queryFields) == 0 {
-		log.Printf("using default field (%v) since %v has no queryFields", mapping["default"], query)
+		log.Printf("using default field (%v) since %v has no queryFields\n", mapping["default"], query)
 		queryFields = mapping["default"]
 	}
 
