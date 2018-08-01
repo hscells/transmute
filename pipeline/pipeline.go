@@ -6,6 +6,7 @@ import (
 	"github.com/hscells/transmute/parser"
 	"strings"
 	"fmt"
+	"log"
 )
 
 // TransmutePipeline contains the information needed to execute a full compilation.
@@ -43,9 +44,22 @@ func (p TransmutePipeline) Execute(query string) (backend.BooleanQuery, error) {
 	// Lex.
 	var ast lexer.Node
 	var err error
+	query = strings.TrimSpace(query)
 	if p.Options.AddRedundantParenthesis {
 		if strings.Count(query, "\n") == 0 {
-			query = fmt.Sprintf("(%s)", query)
+			n := 0
+			for i, c := range query {
+				if c == '(' {
+					n++
+				} else if c == ')' {
+					n--
+				}
+				if i > 0 && i < len(query)-1 && n == 0 {
+					log.Println("adding a redundant set of parens to query")
+					query = fmt.Sprintf("(%s)", query)
+					break
+				}
+			}
 		}
 	}
 	if p.Options.RequiresLexing {

@@ -80,7 +80,9 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 			if len(mf) > 0 && !keyword.Exploded {
 				mf += ":noexp"
 			}
-		} else {
+		}
+
+		if len(mf) == 0 {
 			mapping := map[string][]string{
 				"Mesh Terms":       {fields.MeshHeadings},
 				"Subheading":       {fields.FloatingMeshHeadings},

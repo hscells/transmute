@@ -20,14 +20,18 @@ var PubMedFieldMapping = map[string][]string{
 	"mesh terms":           {fields.MeshHeadings},
 	"MAJR":                 {fields.MajorFocusMeshHeading},
 	"MeSH Major Topic":     {fields.MajorFocusMeshHeading},
+	"mesh major topic":     {fields.MajorFocusMeshHeading},
 	"MeSH Subheading":      {fields.FloatingMeshHeadings},
 	"Subheading":           {fields.FloatingMeshHeadings},
+	"subheading":           {fields.FloatingMeshHeadings},
 	"Title/Abstract":       {fields.Title, fields.Abstract},
 	"Title":                {fields.Title},
 	"Abstract":             {fields.Abstract},
 	"Publication":          {fields.PublicationType},
 	"Publication Type":     {fields.PublicationType},
+	"publication type":     {fields.PublicationType},
 	"Journal":              {fields.Journal},
+	"journal":              {fields.Journal},
 	"All Fields":           {fields.Title, fields.Abstract, fields.MeshHeadings},
 	"Date - Entrez : 3000": {fields.PublicationDate},
 	"mh":                   {fields.MeshHeadings},
@@ -53,7 +57,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 		possibleField := strings.Replace(parts[1], "]", "", -1)
 
 		// Set the exploded option on the keyword.
-		if strings.Contains(strings.ToLower(possibleField), "mesh") {
+		if strings.Contains(strings.ToLower(possibleField), "mesh") || strings.Contains(strings.ToLower(possibleField), "heading") {
 			exploded = true
 		}
 
