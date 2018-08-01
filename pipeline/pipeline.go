@@ -4,6 +4,8 @@ import (
 	"github.com/hscells/transmute/backend"
 	"github.com/hscells/transmute/lexer"
 	"github.com/hscells/transmute/parser"
+	"strings"
+	"fmt"
 )
 
 // TransmutePipeline contains the information needed to execute a full compilation.
@@ -15,9 +17,10 @@ type TransmutePipeline struct {
 
 // TransmutePipelineOptions contains additional optional components relating to the pipeline.
 type TransmutePipelineOptions struct {
-	LexOptions     lexer.LexOptions
-	FieldMapping   map[string][]string
-	RequiresLexing bool
+	LexOptions              lexer.LexOptions
+	FieldMapping            map[string][]string
+	AddRedundantParenthesis bool
+	RequiresLexing          bool
 }
 
 // NewPipeline creates a new transmute pipeline.
@@ -40,6 +43,11 @@ func (p TransmutePipeline) Execute(query string) (backend.BooleanQuery, error) {
 	// Lex.
 	var ast lexer.Node
 	var err error
+	if p.Options.AddRedundantParenthesis {
+		if strings.Count(query, "\n") == 0 {
+			query = fmt.Sprintf("(%s)", query)
+		}
+	}
 	if p.Options.RequiresLexing {
 		ast, err = lexer.Lex(query, p.Options.LexOptions)
 		if err != nil {

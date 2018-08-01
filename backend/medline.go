@@ -68,6 +68,7 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 				"pt":       {fields.PublicationType},
 				"ed":       {fields.PublicationDate},
 				"au":       {fields.Authors},
+				"jn":       {fields.Journal},
 			}
 			sort.Strings(keyword.Fields)
 			keyword.Fields = set.Strings(keyword.Fields)

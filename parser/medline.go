@@ -29,6 +29,9 @@ var MedlineFieldMapping = map[string][]string{
 	"pt":      {fields.PublicationType},
 	"em":      {fields.PublicationDate},
 	"ed":      {fields.PublicationDate},
+	"ja":      {fields.Journal},
+	"jn":      {fields.Journal},
+	"jw":      {fields.Journal},
 	"au":      {fields.Authors},
 	"default": {fields.Abstract, fields.Title},
 }

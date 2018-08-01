@@ -16,7 +16,8 @@ var (
 			LexOptions: lexer.LexOptions{
 				FormatParenthesis: false,
 			},
-			RequiresLexing: true,
+			AddRedundantParenthesis: true,
+			RequiresLexing:          true,
 		})
 	Pubmed2Cqr = pipeline.NewPipeline(
 		parser.NewPubMedParser(),
@@ -25,7 +26,8 @@ var (
 			LexOptions: lexer.LexOptions{
 				FormatParenthesis: true,
 			},
-			RequiresLexing: false,
+			AddRedundantParenthesis: true,
+			RequiresLexing:          false,
 		})
 	Cqr2Medline = pipeline.NewPipeline(
 		parser.NewCQRParser(),
