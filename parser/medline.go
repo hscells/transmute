@@ -99,7 +99,7 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 	// Trim the query string to prevent whitespace such as newlines interfering with string processing.
 	query = strings.TrimSpace(query)
 
-	if query[len(query)-1] == '/' {
+	if len(query) > 0 && query[len(query)-1] == '/' {
 		// Check to see if we are looking at a mesh heading string.
 		expParts := strings.Split(query, " ")
 		if expParts[0] == "exp" {

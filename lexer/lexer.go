@@ -160,7 +160,14 @@ func Lex(query string, options LexOptions) (Node, error) {
 		line = strings.TrimSpace(line)
 		// First check if we are looking at an operator.
 
-		if numberRegex.MatchString(strings.Split(line, " ")[0]) {
+		if numberRegex.MatchString(line) {
+			// We are looking at just a single reference on a line.
+			ref, err := strconv.ParseInt(line, 10, 64)
+			if err != nil {
+				return Node{}, nil
+			}
+			line = queries[int(ref)-1]
+		} else if numberRegex.MatchString(strings.Split(line, " ")[0]) {
 			// Assume we are looking at `N OP N OP N`.
 			depth1Query[reference+1], err = ProcessInfixOperators(queries, line)
 			if err != nil {

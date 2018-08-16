@@ -35,10 +35,11 @@ func (q QueryParser) Parse(ast lexer.Node) ir.BooleanQuery {
 	var visit func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery
 	visit = func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery {
 		query.Operator = node.Operator
+		//fmt.Println("::::", node, len(node.Children))
 		for _, child := range node.Children {
 			if len(child.Operator) == 0 {
 				// Nested query.
-				if child.Value[0] == '(' {
+				if len(child.Value) > 0 && child.Value[0] == '(' {
 					query.Children = append(query.Children, q.Parser.TransformNested(child.Value, q.FieldMapping))
 				} else {
 					// Regular line of a query.
