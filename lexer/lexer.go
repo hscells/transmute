@@ -167,7 +167,9 @@ func Lex(query string, options LexOptions) (Node, error) {
 				return Node{}, nil
 			}
 			line = queries[int(ref)-1]
-		} else if numberRegex.MatchString(strings.Split(line, " ")[0]) {
+		}
+
+		if numberRegex.MatchString(strings.Split(line, " ")[0]) {
 			// Assume we are looking at `N OP N OP N`.
 			depth1Query[reference+1], err = ProcessInfixOperators(queries, line)
 			if err != nil {
