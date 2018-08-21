@@ -27,6 +27,7 @@ var PubMedFieldMapping = map[string][]string{
 	"Title/Abstract":       {fields.Title, fields.Abstract},
 	"Title":                {fields.Title},
 	"Abstract":             {fields.Abstract},
+	"Text Word":            {fields.Abstract},
 	"Publication":          {fields.PublicationType},
 	"Publication Type":     {fields.PublicationType},
 	"publication type":     {fields.PublicationType},
