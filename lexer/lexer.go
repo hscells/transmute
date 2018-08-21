@@ -11,8 +11,8 @@ import (
 
 var (
 	numberRegex, _ = regexp.Compile("^[0-9]+$")
-	prefixRegex, _ = regexp.Compile("^(or|and|not|OR|AND|NOT)/[0-9]+-[0-9]+$")
-	namedRegex, _  = regexp.Compile("^(or|and|not|OR|AND|NOT)/[0-9]+,[0-9]+$")
+	prefixRegex, _ = regexp.Compile("^(or|and|not|OR|AND|NOT|adj[0-9]+)/[0-9]+-[0-9]+$")
+	namedRegex, _  = regexp.Compile("^(or|and|not|OR|AND|NOT|adj[0-9]+)/[0-9]+,[0-9]+$")
 )
 
 // Node contains the encoding of the query as a tree.
