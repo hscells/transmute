@@ -62,3 +62,22 @@ func CompilePubmed2Cqr(q string) (cqr.CommonQueryRepresentation, error) {
 
 	return repr.(cqr.CommonQueryRepresentation), nil
 }
+
+func CompileCqr2PubMed(q cqr.CommonQueryRepresentation) (string, error) {
+	s, err := backend.NewCQRQuery(q).String()
+	if err != nil {
+		return "", err
+	}
+
+	b, err := Cqr2Pubmed.Execute(s)
+	if err != nil {
+		return "", err
+	}
+
+	p, err := b.String()
+	if err != nil {
+		return "", err
+	}
+
+	return p, nil
+}
