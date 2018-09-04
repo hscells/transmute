@@ -81,3 +81,22 @@ func CompileCqr2PubMed(q cqr.CommonQueryRepresentation) (string, error) {
 
 	return p, nil
 }
+
+func CompileCqr2Medline(q cqr.CommonQueryRepresentation) (string, error) {
+	s, err := backend.NewCQRQuery(q).String()
+	if err != nil {
+		return "", err
+	}
+
+	b, err := Cqr2Medline.Execute(s)
+	if err != nil {
+		return "", err
+	}
+
+	p, err := b.String()
+	if err != nil {
+		return "", err
+	}
+
+	return p, nil
+}
