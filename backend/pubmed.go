@@ -1,13 +1,13 @@
 package backend
 
 import (
-	"github.com/hscells/transmute/ir"
-	"fmt"
-	"strings"
-	"github.com/hscells/cqr"
 	"bytes"
-	"sort"
+	"fmt"
+	"github.com/hscells/cqr"
 	"github.com/hscells/transmute/fields"
+	"github.com/hscells/transmute/ir"
+	"sort"
+	"strings"
 )
 
 type PubmedBackend struct {
@@ -84,15 +84,51 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 
 		if len(mf) == 0 {
 			mapping := map[string][]string{
-				"Mesh Terms":       {fields.MeshHeadings},
-				"Subheading":       {fields.FloatingMeshHeadings},
-				"MeSH Major Topic": {fields.MajorFocusMeshHeading},
-				"Title/Abstract":   {fields.Abstract, fields.Title},
-				"Title":            {fields.Title},
-				"Text Word":        {fields.Abstract},
-				"Publication Type": {fields.PublicationType},
-				"Publication Date": {fields.PublicationDate},
-				"Journal":          {fields.Journal},
+				"Subheading":          {fields.FloatingMeshHeadings},
+				"Publication Date":    {fields.PublicationDate},
+				"Affiliation":         {fields.Affiliation},
+				"All Fields":          {fields.AllFields},
+				"Author":              {fields.Author},
+				"Author - Corporate":  {fields.AuthorCorporate},
+				"Author - First":      {fields.AuthorFirst},
+				"Author - Full":       {fields.AuthorFull},
+				"Author - Identifier": {fields.AuthorIdentifier},
+				"Author - Last":       {fields.AuthorLast},
+				"Book":                {fields.Book},
+				"Conflict of Interest Statements": {fields.ConflictOfInterestStatements},
+				"Date - Completion":               {fields.DateCompletion},
+				"Date - Create":                   {fields.DateCreate},
+				"Date - Entrez":                   {fields.DateEntrez},
+				"Date - MeSH":                     {fields.DateMeSH},
+				"Date - Modification":             {fields.DateModification},
+				"Date - Publication":              {fields.DatePublication},
+				"EC/RN Number":                    {fields.ECRNNumber},
+				"Editor":                          {fields.Editor},
+				"Filter":                          {fields.Filter},
+				"Grant Number":                    {fields.GrantNumber},
+				"ISBN":                            {fields.ISBN},
+				"Investigator":                    {fields.Investigator},
+				"Investigator - Full":             {fields.InvestigatorFull},
+				"Issue":                           {fields.Issue},
+				"Journal":                         {fields.Journal},
+				"Language":                        {fields.Language},
+				"Location ID":                     {fields.LocationID},
+				"MeSH Major Topic":                {fields.MeSHMajorTopic},
+				"MeSH Subheading":                 {fields.MeSHSubheading},
+				"MeSH Terms":                      {fields.MeSHTerms},
+				"Other Term":                      {fields.OtherTerm},
+				"Pagination":                      {fields.Pagination},
+				"Pharmacological Action":          {fields.PharmacologicalAction},
+				"Publication Type":                {fields.PublicationType},
+				"Publisher":                       {fields.Publisher},
+				"Secondary Source ID":             {fields.SecondarySourceID},
+				"Subject - Personal Name":         {fields.SubjectPersonalName},
+				"Supplementary Concept":           {fields.SupplementaryConcept},
+				"Text Word":                       {fields.TextWord},
+				"Title":                           {fields.Title},
+				"Title/Abstract":                  {fields.TitleAbstract},
+				"Transliterated Title":            {fields.TransliteratedTitle},
+				"Volume":                          {fields.Volume},
 			}
 			sort.Strings(keyword.Fields)
 			for f, mappingFields := range mapping {
