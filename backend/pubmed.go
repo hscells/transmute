@@ -84,18 +84,17 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 
 		if len(mf) == 0 {
 			mapping := map[string][]string{
-				"Subheading":          {fields.FloatingMeshHeadings},
-				"Publication Date":    {fields.PublicationDate},
 				"Affiliation":         {fields.Affiliation},
 				"All Fields":          {fields.AllFields},
 				"Author":              {fields.Author},
+				"Authors":             {fields.Authors},
 				"Author - Corporate":  {fields.AuthorCorporate},
 				"Author - First":      {fields.AuthorFirst},
 				"Author - Full":       {fields.AuthorFull},
 				"Author - Identifier": {fields.AuthorIdentifier},
 				"Author - Last":       {fields.AuthorLast},
 				"Book":                {fields.Book},
-				"Conflict of Interest Statements": {fields.ConflictOfInterestStatements},
+				"Conflict Of Interest Statements": {fields.ConflictOfInterestStatements},
 				"Date - Completion":               {fields.DateCompletion},
 				"Date - Create":                   {fields.DateCreate},
 				"Date - Entrez":                   {fields.DateEntrez},
@@ -122,13 +121,19 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 				"Publication Type":                {fields.PublicationType},
 				"Publisher":                       {fields.Publisher},
 				"Secondary Source ID":             {fields.SecondarySourceID},
-				"Subject - Personal Name":         {fields.SubjectPersonalName},
+				"Subject Personal Name":           {fields.SubjectPersonalName},
 				"Supplementary Concept":           {fields.SupplementaryConcept},
+				"Floating MeshHeadings":           {fields.FloatingMeshHeadings},
 				"Text Word":                       {fields.TextWord},
 				"Title":                           {fields.Title},
 				"Title/Abstract":                  {fields.TitleAbstract},
 				"Transliterated Title":            {fields.TransliteratedTitle},
 				"Volume":                          {fields.Volume},
+				"Abstract":                        {fields.Abstract},
+				"MeSH Headings":                   {fields.MeshHeadings},
+				"Major Focus MeSH Heading":        {fields.MajorFocusMeshHeading},
+				"Publication Date":                {fields.PublicationDate},
+				"Publication Status":              {fields.PublicationStatus},
 			}
 			sort.Strings(keyword.Fields)
 			for f, mappingFields := range mapping {
@@ -148,7 +153,7 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 			}
 			// This should be a sensible enough default.
 			if len(mf) == 0 {
-				mf = "All Fields"
+				mf = keyword.Fields[0] //"All Fields"
 			}
 		}
 		qs = fmt.Sprintf("%v[%v]", qs, mf)
