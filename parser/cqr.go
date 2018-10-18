@@ -3,10 +3,10 @@ package parser
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/hscells/transmute/ir"
-	"log"
 	"github.com/hscells/cqr"
 	"github.com/hscells/transmute/fields"
+	"github.com/hscells/transmute/ir"
+	"log"
 )
 
 // CQRTransformer is an implementation of a query transformer for CQR queries.
@@ -19,17 +19,17 @@ func (c CQRTransformer) TransformSingle(query string, mapping map[string][]strin
 
 // transformSingle maps CQR keywords to ir keywords.
 func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir.Keyword {
-	var fields []string
+	var queryFields []string
 	if _, ok := rep["fields"]; ok && rep["fields"] != nil {
-		for _, field := range rep["fields"].([]interface{}) {
-			fields = append(fields, field.(string))
+		for _, f := range rep["fields"].([]interface{}) {
+			queryFields = append(queryFields, f.(string))
 		}
 	} else {
-		fields = mapping["default"]
+		queryFields = mapping["default"]
 	}
 
-	if len(fields) == 0 || rep["fields"] == nil {
-		fields = mapping["default"]
+	if len(queryFields) == 0 || rep["fields"] == nil {
+		queryFields = mapping["default"]
 	}
 
 	var exploded, truncated bool
@@ -49,7 +49,7 @@ func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir
 
 	return ir.Keyword{
 		QueryString: query,
-		Fields:      fields,
+		Fields:      queryFields,
 		Exploded:    exploded,
 		Truncated:   truncated,
 	}

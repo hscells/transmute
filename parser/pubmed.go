@@ -102,7 +102,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 			exploded = false
 			possibleField = strings.Replace(strings.ToLower(possibleField), ":noexp", "", -1)
 		}
-
+		
 		// If we are unable to map the field then we can explode.
 		if field, ok := mapping[possibleField]; ok {
 			queryFields = field
