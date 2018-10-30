@@ -82,7 +82,7 @@ var PubMedFieldMapping = map[string][]string{
 func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
 	var queryString string
 	var queryFields []string
-	exploded := false
+	exploded := true
 
 	if strings.ContainsRune(query, '[') {
 		// This query string most likely has a field.
