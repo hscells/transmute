@@ -142,11 +142,9 @@ As well as being a well-documented library, transmute can also be used on the co
 development, it can be built from source with go tools:
 
 ```bash
-go get -u github.com/hscells/transmute
-cd $GOPATH/src/github.com/hscells/transmute
-go build
-./transmute --help
-./transmute --input mmse.query --parser medline --backend elasticsearch
+go get -u github.com/hscells/transmute/cmd/transmute
+transmute --help
+transmute --input mmse.query --parser medline --backend elasticsearch
 ```
 
 The output of the command line pretty-prints the same output from above.
