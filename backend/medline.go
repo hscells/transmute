@@ -1,14 +1,14 @@
 package backend
 
 import (
-	"github.com/hscells/transmute/ir"
 	"fmt"
-	"log"
-	"strings"
-	"strconv"
-	"sort"
-	"github.com/xtgo/set"
 	"github.com/hscells/transmute/fields"
+	"github.com/hscells/transmute/ir"
+	"github.com/xtgo/set"
+	"log"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 type MedlineBackend struct {
@@ -69,6 +69,7 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 				"ed":       {fields.PublicationDate},
 				"au":       {fields.Authors},
 				"jn":       {fields.Journal},
+				"ti,ab":    {fields.TitleAbstract},
 			}
 			sort.Strings(keyword.Fields)
 			keyword.Fields = set.Strings(keyword.Fields)

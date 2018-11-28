@@ -76,7 +76,8 @@ var PubMedFieldMapping = map[string][]string{
 	"pt":                              {fields.PublicationType},
 	"sb":                              {fields.PublicationStatus},
 	"tiab":                            {fields.TitleAbstract},
-	"default":                         {fields.Title, fields.Abstract},
+	"text":                            {fields.TitleAbstract},
+	"default":                         {fields.TextWord},
 }
 
 func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]string) ir.Keyword {
@@ -102,7 +103,7 @@ func (t PubMedTransformer) TransformSingle(query string, mapping map[string][]st
 			exploded = false
 			possibleField = strings.Replace(strings.ToLower(possibleField), ":noexp", "", -1)
 		}
-		
+
 		// If we are unable to map the field then we can explode.
 		if field, ok := mapping[possibleField]; ok {
 			queryFields = field

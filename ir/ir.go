@@ -5,10 +5,11 @@ package ir
 // contains the phrase to search, but the fields in the database to search, how it is truncated, and if it is a mesh
 // term, if the term has been exploded.
 type Keyword struct {
-	QueryString string   `json:"query"`
-	Fields      []string `json:"fields"`
-	Exploded    bool     `json:"exploded"`
-	Truncated   bool     `json:"truncated"`
+	QueryString string                 `json:"query"`
+	Fields      []string               `json:"fields"`
+	Exploded    bool                   `json:"exploded"`
+	Truncated   bool                   `json:"truncated"`
+	Options     map[string]interface{} `json:"options"`
 }
 
 // BooleanQuery is the immediate representation of a boolean query for a search engine. This representation groups a

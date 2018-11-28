@@ -36,15 +36,8 @@ func (q CommonQueryRepresentationQuery) StringPretty() (string, error) {
 func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQuery, error) {
 	var children []cqr.CommonQueryRepresentation
 	for _, keyword := range q.Keywords {
-		k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
-			SetOption(cqr.ExplodedString, keyword.Exploded).
-			SetOption(cqr.TruncatedString, keyword.Truncated).(cqr.Keyword)
-		if !keyword.Exploded {
-			delete(k.Options, cqr.ExplodedString)
-		}
-		if !keyword.Truncated {
-			delete(k.Options, cqr.TruncatedString)
-		}
+		k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...)
+		k.Options = keyword.Options
 		children = append(children, k)
 	}
 	for _, child := range q.Children {

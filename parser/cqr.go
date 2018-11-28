@@ -33,13 +33,15 @@ func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir
 	}
 
 	var exploded, truncated bool
-	if _, ok := rep["options"].(map[string]interface{}); ok {
+	options := make(map[string]interface{})
+	if o, ok := rep["options"].(map[string]interface{}); ok {
 		if v, ok := rep["options"].(map[string]interface{})["exploded"]; ok {
 			exploded = v.(bool)
 		}
 		if v, ok := rep["options"].(map[string]interface{})["truncated"]; ok {
 			truncated = v.(bool)
 		}
+		options = o
 	}
 
 	query := ""
@@ -52,6 +54,7 @@ func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir
 		Fields:      queryFields,
 		Exploded:    exploded,
 		Truncated:   truncated,
+		Options:     options,
 	}
 }
 

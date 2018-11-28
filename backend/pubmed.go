@@ -73,7 +73,7 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 			if keyword.Fields[0] == fields.MeshHeadings {
 				mf = "Mesh Terms"
 			} else if keyword.Fields[0] == fields.FloatingMeshHeadings {
-				mf = "Subheading"
+				mf = "MeSH Subheading"
 			} else if keyword.Fields[0] == fields.MajorFocusMeshHeading {
 				mf = "MeSH Major Topic"
 			}
@@ -153,7 +153,7 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 			}
 			// This should be a sensible enough default.
 			if len(mf) == 0 {
-				mf = keyword.Fields[0] //"All Fields"
+				mf = fields.AllFields //keyword.Fields[0] //"All Fields"
 			}
 		}
 		qs = fmt.Sprintf("%v[%v]", qs, mf)

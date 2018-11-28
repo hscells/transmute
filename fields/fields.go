@@ -42,7 +42,7 @@ var (
 	SubjectPersonalName          = "subject_personal_name"
 	SupplementaryConcept         = "supplementary_concept"
 	FloatingMeshHeadings         = "floating_mesh_headings"
-	TextWord                     = "text"
+	TextWord                     = "text_word"
 	Title                        = "title"
 	TitleAbstract                = "title_abstract"
 	TransliteratedTitle          = "transliterated_title"
