@@ -83,19 +83,19 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 		}
 
 		if len(mf) == 0 {
-			mapping := map[string][]string{
-				"Affiliation":         {fields.Affiliation},
-				"All Fields":          {fields.AllFields},
-				"Author":              {fields.Author},
-				"Authors":             {fields.Authors},
-				"Author - Corporate":  {fields.AuthorCorporate},
-				"Author - First":      {fields.AuthorFirst},
-				"Author - Full":       {fields.AuthorFull},
-				"Author - Identifier": {fields.AuthorIdentifier},
-				"Author - Last":       {fields.AuthorLast},
-				"Book":                {fields.Book},
-				"Conflict Of Interest Statements": {fields.ConflictOfInterestStatements},
+			mapping1 := map[string][]string{
+				"Affiliation":                     {fields.Affiliation},
+				"All Fields":                      {fields.AllFields},
+				"Author":                          {fields.Author},
+				"Authors":                         {fields.Authors},
+				"Author - Corporate":              {fields.AuthorCorporate},
+				"Author - First":                  {fields.AuthorFirst},
+				"Author - Full":                   {fields.AuthorFull},
+				"Author - Identifier":             {fields.AuthorIdentifier},
+				"Author - Last":                   {fields.AuthorLast},
+				"Book":                            {fields.Book},
 				"Date - Completion":               {fields.DateCompletion},
+				"Conflict Of Interest Statements": {fields.ConflictOfInterestStatements},
 				"Date - Create":                   {fields.DateCreate},
 				"Date - Entrez":                   {fields.DateEntrez},
 				"Date - MeSH":                     {fields.DateMeSH},
@@ -135,8 +135,26 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 				"Publication Date":                {fields.PublicationDate},
 				"Publication Status":              {fields.PublicationStatus},
 			}
+			mapping2 := map[string][]string{
+				"Title/Abstract": {fields.Abstract, fields.TitleAbstract},
+			}
 			sort.Strings(keyword.Fields)
-			for f, mappingFields := range mapping {
+			for f, mappingFields := range mapping1 {
+				if len(mappingFields) != len(keyword.Fields) {
+					continue
+				}
+				match := true
+				for i, field := range keyword.Fields {
+					if field != mappingFields[i] {
+						match = false
+					}
+				}
+				if match {
+					mf = f
+					break
+				}
+			}
+			for f, mappingFields := range mapping2 {
 				if len(mappingFields) != len(keyword.Fields) {
 					continue
 				}
@@ -153,7 +171,7 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 			}
 			// This should be a sensible enough default.
 			if len(mf) == 0 {
-				mf = fields.AllFields //keyword.Fields[0] //"All Fields"
+				mf = "All Fields"
 			}
 		}
 		qs = fmt.Sprintf("%v[%v]", qs, mf)
