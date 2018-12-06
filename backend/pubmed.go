@@ -129,14 +129,14 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 				"Title/Abstract":                  {fields.TitleAbstract},
 				"Transliterated Title":            {fields.TransliteratedTitle},
 				"Volume":                          {fields.Volume},
-				"Abstract":                        {fields.Abstract},
 				"MeSH Headings":                   {fields.MeshHeadings},
 				"Major Focus MeSH Heading":        {fields.MajorFocusMeshHeading},
 				"Publication Date":                {fields.PublicationDate},
 				"Publication Status":              {fields.PublicationStatus},
 			}
 			mapping2 := map[string][]string{
-				"Title/Abstract": {fields.Abstract, fields.TitleAbstract},
+				"Title/Abstract": {fields.Abstract, fields.Title},
+				"Text Word":      {fields.Abstract},
 			}
 			sort.Strings(keyword.Fields)
 			for f, mappingFields := range mapping1 {
@@ -155,9 +155,6 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 				}
 			}
 			for f, mappingFields := range mapping2 {
-				if len(mappingFields) != len(keyword.Fields) {
-					continue
-				}
 				match := true
 				for i, field := range keyword.Fields {
 					if field != mappingFields[i] {
