@@ -155,6 +155,9 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 				}
 			}
 			for f, mappingFields := range mapping2 {
+				if len(mappingFields) != len(keyword.Fields) {
+					continue
+				}
 				match := true
 				for i, field := range keyword.Fields {
 					if field != mappingFields[i] {
