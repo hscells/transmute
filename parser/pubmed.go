@@ -385,7 +385,7 @@ func (t PubMedTransformer) IsOperator(s string) bool {
 // transformPrefixGroupToQueryGroup transforms a prefix syntax tree into a query group. The new QueryGroup is built by
 // recursively navigating the syntax tree.
 func (t PubMedTransformer) TransformPrefixGroupToQueryGroup(prefix []string, queryGroup ir.BooleanQuery, mapping map[string][]string) ([]string, ir.BooleanQuery) {
-	if len(prefix) == 0 {
+	if len(prefix) <= 1 {
 		return prefix, queryGroup
 	}
 
