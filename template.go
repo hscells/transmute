@@ -1,11 +1,11 @@
 package transmute
 
 import (
-	"github.com/hscells/transmute/pipeline"
-	"github.com/hscells/transmute/parser"
+	"github.com/hscells/cqr"
 	"github.com/hscells/transmute/backend"
 	"github.com/hscells/transmute/lexer"
-	"github.com/hscells/cqr"
+	"github.com/hscells/transmute/parser"
+	"github.com/hscells/transmute/pipeline"
 )
 
 var (
@@ -48,6 +48,20 @@ var (
 			RequiresLexing: false,
 		})
 )
+
+func CompileMedline2Cqr(q string) (cqr.CommonQueryRepresentation, error) {
+	bq, err := Medline2Cqr.Execute(q)
+	if err != nil {
+		return nil, err
+	}
+
+	repr, err := bq.Representation()
+	if err != nil {
+		return nil, err
+	}
+
+	return repr.(cqr.CommonQueryRepresentation), nil
+}
 
 func CompilePubmed2Cqr(q string) (cqr.CommonQueryRepresentation, error) {
 	bq, err := Pubmed2Cqr.Execute(q)

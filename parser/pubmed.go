@@ -395,7 +395,7 @@ func (t PubMedTransformer) TransformPrefixGroupToQueryGroup(prefix []string, que
 	} else if token == "(" {
 		var subGroup ir.BooleanQuery
 		prefix, subGroup = t.TransformPrefixGroupToQueryGroup(prefix[1:], ir.BooleanQuery{}, mapping)
-		if len(prefix) <= 1 {
+		if len(prefix) == 0 {
 			return prefix, queryGroup
 		}
 		if len(subGroup.Operator) == 0 {
