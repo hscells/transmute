@@ -26,6 +26,7 @@ var PubMedFieldMapping = map[string][]string{
 	"publication type":                {fields.PublicationType},
 	"journal":                         {fields.Journal},
 	"Date - Entrez : 3000":            {fields.PublicationDate},
+	"Publication Date":                {fields.PublicationDate},
 	"Affiliation":                     {fields.Affiliation},
 	"All Fields":                      {fields.AllFields},
 	"Author":                          {fields.Author},

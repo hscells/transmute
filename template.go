@@ -114,3 +114,30 @@ func CompileCqr2Medline(q cqr.CommonQueryRepresentation) (string, error) {
 
 	return p, nil
 }
+
+func CompileCqr2String(q cqr.CommonQueryRepresentation) (string, error) {
+	return backend.NewCQRQuery(q).String()
+}
+
+func CompileString2Cqr(q string) (cqr.CommonQueryRepresentation, error) {
+	p := pipeline.NewPipeline(
+		parser.NewCQRParser(),
+		backend.NewCQRBackend(),
+		pipeline.TransmutePipelineOptions{
+			LexOptions: lexer.LexOptions{
+				FormatParenthesis: false,
+			},
+			AddRedundantParenthesis: false,
+			RequiresLexing:          false,
+		})
+
+	b, err := p.Execute(q)
+	if err != nil {
+		return nil, err
+	}
+	i, err := b.Representation()
+	if err != nil {
+		return nil, err
+	}
+	return i.(cqr.CommonQueryRepresentation), nil
+}

@@ -61,14 +61,16 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 				"ab,sh":    {fields.MeshHeadings, fields.Abstract},
 				"ti,sh":    {fields.MeshHeadings, fields.Title},
 				"tw":       {fields.Abstract, fields.Title},
-				"fs":       {fields.FloatingMeshHeadings},
 				"ab":       {fields.Abstract},
 				"ti":       {fields.Title},
+				"fs":       {fields.FloatingMeshHeadings},
 				"sh":       {fields.MeshHeadings},
+				"mh":       {fields.MeSHTerms},
 				"pt":       {fields.PublicationType},
 				"ed":       {fields.PublicationDate},
 				"au":       {fields.Authors},
 				"jn":       {fields.Journal},
+				"mp":       {fields.AllFields},
 				"ti,ab":    {fields.TitleAbstract},
 			}
 			sort.Strings(keyword.Fields)
