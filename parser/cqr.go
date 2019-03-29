@@ -22,7 +22,11 @@ func transformSingle(rep map[string]interface{}, mapping map[string][]string) ir
 	var queryFields []string
 	if _, ok := rep["fields"]; ok && rep["fields"] != nil {
 		for _, f := range rep["fields"].([]interface{}) {
-			queryFields = append(queryFields, f.(string))
+			if v, ok := mapping[f.(string)]; ok {
+				queryFields = append(queryFields, v...)
+			} else {
+				queryFields = append(queryFields, f.(string))
+			}
 		}
 	} else {
 		queryFields = mapping["default"]
@@ -98,5 +102,5 @@ func (c CQRTransformer) TransformNested(query string, mapping map[string][]strin
 // NewCQRParser creates a new parser for CQR queries. This parser makes a lot of assumptions as it assumes the
 // structure of this query is perfect.
 func NewCQRParser() QueryParser {
-	return QueryParser{Parser: CQRTransformer{}, FieldMapping: map[string][]string{"default": {fields.Title, fields.Abstract}}}
+	return QueryParser{Parser: CQRTransformer{}, FieldMapping: map[string][]string{"default": {fields.TitleAbstract}}}
 }

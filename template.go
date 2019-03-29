@@ -36,7 +36,8 @@ var (
 			LexOptions: lexer.LexOptions{
 				FormatParenthesis: false,
 			},
-			RequiresLexing: false,
+			RequiresLexing:          false,
+			AddRedundantParenthesis: false,
 		})
 	Cqr2Pubmed = pipeline.NewPipeline(
 		parser.NewCQRParser(),
@@ -45,7 +46,8 @@ var (
 			LexOptions: lexer.LexOptions{
 				FormatParenthesis: false,
 			},
-			RequiresLexing: false,
+			RequiresLexing:          false,
+			AddRedundantParenthesis: false,
 		})
 )
 

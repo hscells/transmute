@@ -134,45 +134,29 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 				"Publication Date":                {fields.PublicationDate},
 				"Publication Status":              {fields.PublicationStatus},
 			}
-			mapping2 := map[string][]string{
-				"Title/Abstract": {fields.Abstract, fields.Title},
-				"Text Word":      {fields.Abstract},
-			}
+
 			sort.Strings(keyword.Fields)
 			for f, mappingFields := range mapping1 {
 				if len(mappingFields) != len(keyword.Fields) {
 					continue
 				}
-				match := true
-				for i, field := range keyword.Fields {
-					if field != mappingFields[i] {
-						match = false
+				for _, field := range keyword.Fields {
+					for _, f2 := range mappingFields {
+						if field == f2 || field == f {
+							mf = f
+							break
+						}
 					}
 				}
-				if match {
-					mf = f
-					break
-				}
 			}
-			for f, mappingFields := range mapping2 {
-				if len(mappingFields) != len(keyword.Fields) {
-					continue
-				}
-				match := true
-				for i, field := range keyword.Fields {
-					if field != mappingFields[i] {
-						match = false
-					}
-				}
-				if match {
-					mf = f
-					break
-				}
-			}
+			fmt.Println(mf)
+
 			// This should be a sensible enough default.
 			if len(mf) == 0 {
 				mf = "All Fields"
 			}
+
+			fmt.Println(mf)
 		}
 		qs = fmt.Sprintf("%v[%v]", qs, mf)
 		keywords[i] = qs
