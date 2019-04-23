@@ -149,14 +149,10 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 					}
 				}
 			}
-			fmt.Println(mf)
-
 			// This should be a sensible enough default.
 			if len(mf) == 0 {
 				mf = "All Fields"
 			}
-
-			fmt.Println(mf)
 		}
 		qs = fmt.Sprintf("%v[%v]", qs, mf)
 		keywords[i] = qs
