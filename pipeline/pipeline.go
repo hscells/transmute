@@ -1,12 +1,12 @@
 package pipeline
 
 import (
+	"fmt"
 	"github.com/hscells/transmute/backend"
 	"github.com/hscells/transmute/lexer"
 	"github.com/hscells/transmute/parser"
-	"strings"
-	"fmt"
 	"log"
+	"strings"
 )
 
 // TransmutePipeline contains the information needed to execute a full compilation.

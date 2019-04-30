@@ -2,11 +2,11 @@
 package lexer
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
-	"errors"
 )
 
 var (

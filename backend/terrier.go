@@ -1,8 +1,8 @@
 package backend
 
 import (
-	"github.com/hscells/transmute/ir"
 	"fmt"
+	"github.com/hscells/transmute/ir"
 	"strings"
 )
 

@@ -1,14 +1,14 @@
 package parser
 
 import (
+	"fmt"
+	"github.com/hscells/transmute/fields"
 	"github.com/hscells/transmute/ir"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-	"fmt"
-	"sort"
-	"github.com/hscells/transmute/fields"
 )
 
 var MedlineFieldMapping = map[string][]string{

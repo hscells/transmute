@@ -1,9 +1,9 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/hscells/transmute/ir"
 	"github.com/prataprc/goparsec"
-	"fmt"
 )
 
 type CochraneLibParser struct {

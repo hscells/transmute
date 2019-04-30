@@ -7,12 +7,12 @@ package backend
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/hscells/meshexp"
 	"github.com/hscells/transmute/ir"
+	"github.com/pkg/errors"
 	"strconv"
 	"strings"
-	"github.com/hscells/meshexp"
-	"fmt"
-	"github.com/pkg/errors"
 )
 
 // ElasticsearchQuery is the transmute representation of an Elasticsearch keyword.
@@ -317,14 +317,14 @@ func (q ElasticsearchBooleanQuery) traverseGroup(node m) (m, error) {
 				if strings.ContainsAny(queryString, "*?~") {
 					var queries []interface{}
 					/*
-					{
-              			"query_string": {
-                			"query": "text.stemmed:gonadotrop?in releasing hormone agonist*",
-                			"analyze_wildcard": true,
-               	 			"split_on_whitespace" : false
-              			}
-					}
-					 */
+										{
+					              			"query_string": {
+					                			"query": "text.stemmed:gonadotrop?in releasing hormone agonist*",
+					                			"analyze_wildcard": true,
+					               	 			"split_on_whitespace" : false
+					              			}
+										}
+					*/
 					for _, field := range fields {
 						queries = append(queries, m{
 							"query_string": m{
