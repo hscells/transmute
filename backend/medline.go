@@ -50,10 +50,10 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 	for _, keyword := range q.Keywords {
 		var mf string
 		qs := keyword.QueryString
-		if keyword.Exploded {
-			qs = "exp " + qs
-		}
 		if len(keyword.Fields) == 1 && keyword.Fields[0] == fields.MeshHeadings {
+			if keyword.Exploded {
+				qs = "exp " + qs
+			}
 			qs += "/"
 		} else {
 			mapping := map[string][]string{

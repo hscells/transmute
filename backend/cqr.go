@@ -38,6 +38,10 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 	for _, keyword := range q.Keywords {
 		k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...)
 		k.Options = keyword.Options
+		if k.Options == nil {
+			k.Options = make(map[string]interface{})
+		}
+		k = k.SetOption(cqr.ExplodedString, keyword.Exploded).SetOption(cqr.TruncatedString, keyword.Truncated).(cqr.Keyword)
 		children = append(children, k)
 	}
 	for _, child := range q.Children {
@@ -54,12 +58,12 @@ func (b CommonQueryRepresentationBackend) Compile(q ir.BooleanQuery) (BooleanQue
 			k := cqr.NewKeyword(keyword.QueryString, keyword.Fields...).
 				SetOption(cqr.ExplodedString, keyword.Exploded).
 				SetOption(cqr.TruncatedString, keyword.Truncated).(cqr.Keyword)
-			if !keyword.Exploded {
-				delete(k.Options, cqr.ExplodedString)
-			}
-			if !keyword.Truncated {
-				delete(k.Options, cqr.TruncatedString)
-			}
+			//if !keyword.Exploded {
+			//	delete(k.Options, cqr.ExplodedString)
+			//}
+			//if !keyword.Truncated {
+			//	delete(k.Options, cqr.TruncatedString)
+			//}
 			subChildren = append(subChildren, k)
 		}
 
