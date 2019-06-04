@@ -72,7 +72,7 @@ var PubMedFieldMapping = map[string][]string{
 	"Volume":                            {fields.Volume},
 	"mh":                                {fields.MeshHeadings},
 	"sh":                                {fields.FloatingMeshHeadings},
-	"tw":                                {fields.Title, fields.Abstract},
+	"tw":                                {fields.TitleAbstract},
 	"ti":                                {fields.Title},
 	"pt":                                {fields.PublicationType},
 	"sb":                                {fields.PublicationStatus},
