@@ -20,7 +20,7 @@ type args struct {
 }
 
 func (args) Version() string {
-	return "transmute 28.Nov.2018"
+	return "transmute 10.Jun.2019"
 }
 
 func (args) Description() string {

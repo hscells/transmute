@@ -31,7 +31,6 @@ func (q QueryParser) Parse(ast lexer.Node) ir.BooleanQuery {
 	if ast.Children == nil && ast.Reference == 1 {
 		return q.Parser.TransformNested(ast.Value, q.FieldMapping)
 	}
-
 	var visit func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery
 	visit = func(node lexer.Node, query ir.BooleanQuery) ir.BooleanQuery {
 		query.Operator = node.Operator

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hscells/transmute/fields"
 	"github.com/hscells/transmute/ir"
+	"github.com/hscells/transmute/parser"
 	"github.com/xtgo/set"
 	"log"
 	"sort"
@@ -56,38 +57,19 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 			}
 			qs += "/"
 		} else {
-			mapping := map[string][]string{
-				"ti,ab,sh": {fields.MeshHeadings, fields.Abstract, fields.Title},
-				"ab,sh":    {fields.MeshHeadings, fields.Abstract},
-				"ti,sh":    {fields.MeshHeadings, fields.Title},
-				"tw":       {fields.Abstract, fields.Title},
-				"ab":       {fields.Abstract},
-				"ti":       {fields.Title},
-				"fs":       {fields.FloatingMeshHeadings},
-				"sh":       {fields.MeshHeadings},
-				"mh":       {fields.MeSHTerms},
-				"pt":       {fields.PublicationType},
-				"ed":       {fields.PublicationDate},
-				"au":       {fields.Authors},
-				"jn":       {fields.Journal},
-				"mp":       {fields.AllFields},
-				"ti,ab":    {fields.TitleAbstract},
-			}
 			sort.Strings(keyword.Fields)
 			keyword.Fields = set.Strings(keyword.Fields)
-			for f, mappingFields := range mapping {
+			for f, mappingFields := range parser.MedlineFieldMapping {
 				if len(mappingFields) != len(keyword.Fields) {
 					continue
 				}
-				match := true
-				for i, field := range keyword.Fields {
-					if field != mappingFields[i] {
-						match = false
+				for _, field := range keyword.Fields {
+					for _, f2 := range mappingFields {
+						if field == f2 || field == f {
+							mf = f
+							break
+						}
 					}
-				}
-				if match {
-					mf = f
-					break
 				}
 			}
 			if len(mf) == 0 {
