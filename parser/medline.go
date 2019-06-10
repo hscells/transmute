@@ -122,7 +122,7 @@ func (p MedlineTransformer) TransformSingle(query string, mapping map[string][]s
 			queryString = query
 		}
 		queryString = strings.Replace(queryString, "/", "", -1)
-		queryFields = mapping["sh"]
+		queryFields = mapping["mh"]
 	} else {
 		// Otherwise try to parse a regular looking query.
 		parts := strings.Split(query, ".")
