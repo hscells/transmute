@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/hscells/transmute/ir"
 	"github.com/hscells/transmute/lexer"
 )
@@ -28,6 +29,7 @@ type QueryParser struct {
 // Parse takes an AST created from lexing a query and parses each node in it. It uses the TransformNested and
 // TransformSingle functions defined by the Parser and the Field mapping to create an immediate representation tree.
 func (q QueryParser) Parse(ast lexer.Node) ir.BooleanQuery {
+	fmt.Println(ast)
 	if ast.Children == nil && ast.Reference == 1 {
 		return q.Parser.TransformNested(ast.Value, q.FieldMapping)
 	}

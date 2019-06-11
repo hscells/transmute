@@ -89,14 +89,21 @@ func (p MedlineTransformer) TransformNested(query string, mapping map[string][]s
 	fieldsString = ReversePreservingCombiningCharacters(fieldsString)
 	query = strings.Replace(query, fieldsString, "", 1)
 
-	var queryFields []string
-	fieldsString = strings.Replace(fieldsString, ".", "", -1)
-	for _, field := range strings.Split(fieldsString, ",") {
-		queryFields = append(queryFields, mapping[field]...)
-	}
+	//var queryFields []string
+	//fieldsString = strings.Replace(fieldsString, ".", "", -1)
+	//for _, field := range strings.Split(fieldsString, ",") {
+	//	queryFields = append(queryFields, mapping[field]...)
+	//}
 
 	// Add a default field to the keyword if none have been defined
-	if len(queryFields) == 0 {
+	//if len(queryFields) == 0 {
+	//	queryFields = mapping["default"]
+	//}
+
+	var queryFields []string
+	if field, ok := mapping[fieldsString]; ok {
+		queryFields = field
+	} else {
 		queryFields = mapping["default"]
 	}
 
@@ -178,12 +185,15 @@ func (p MedlineTransformer) TransformPrefixGroupToQueryGroup(prefix []string, qu
 				fieldString := prefix[1][1:3]
 
 				// We can try to map them.
-				if strings.Contains(fieldString, ",") {
-					foundFields = p.TransformFields(fieldString, mapping)
-				} else {
-					if f, ok := mapping[fieldString]; ok {
-						foundFields = f
-					}
+				//if strings.Contains(fieldString, ",") {
+				//	foundFields = p.TransformFields(fieldString, mapping)
+				//} else {
+				//	if f, ok := mapping[fieldString]; ok {
+				//		foundFields = f
+				//	}
+				//}
+				if field, ok := mapping[fieldString]; ok {
+					foundFields = field
 				}
 
 				prefix = prefix[1:]
