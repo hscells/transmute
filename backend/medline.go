@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/hscells/transmute/fields"
 	"github.com/hscells/transmute/ir"
-	"github.com/hscells/transmute/parser"
 	"github.com/xtgo/set"
 	"log"
 	"sort"
@@ -57,9 +56,41 @@ func compileMedline(q ir.BooleanQuery, level int) (l int, query MedlineQuery) {
 			}
 			qs += "/"
 		} else {
+			m := map[string][]string{
+				"ti,ab,sh": {fields.AllFields},
+				"ti,ab":    {fields.TitleAbstract},
+				"ab":       {fields.Abstract},
+				"ai":       {fields.AuthorFull},
+				"as":       {fields.PublicationDate},
+				"au":       {fields.Authors},
+				"ax":       {fields.AuthorLast},
+				"ba":       {fields.Authors},
+				"bd":       {fields.PublicationDate},
+				"be":       {fields.Editor},
+				"bf":       {fields.Authors},
+				"em":       {fields.PublicationDate},
+				"ed":       {fields.PublicationDate},
+				"fa":       {fields.AuthorFull},
+				"fe":       {fields.Editor},
+				"fs":       {fields.FloatingMeshHeadings},
+				"fx":       {fields.FloatingMeshHeadings},
+				"ot":       {fields.Title},
+				"mh":       {fields.MeshHeadings},
+				"px":       {fields.MeshHeadings},
+				"pt":       {fields.PublicationType},
+				"rs":       {fields.AllFields},
+				"rn":       {fields.AllFields},
+				"sb":       {fields.PublicationType},
+				"sh":       {fields.MeSHSubheading},
+				"tw":       {fields.TextWord},
+				"ti":       {fields.Title},
+				"ja":       {fields.Journal},
+				"jn":       {fields.Journal},
+				"jw":       {fields.Journal},
+			}
 			sort.Strings(keyword.Fields)
 			keyword.Fields = set.Strings(keyword.Fields)
-			for f, mappingFields := range parser.MedlineFieldMapping {
+			for f, mappingFields := range m {
 				if len(mappingFields) != len(keyword.Fields) {
 					continue
 				}

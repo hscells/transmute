@@ -133,6 +133,7 @@ func compilePubmed(q ir.BooleanQuery, level int, replaceAdj bool) (l int, query 
 				"Major Focus MeSH Heading":        {fields.MajorFocusMeshHeading},
 				"Publication Date":                {fields.PublicationDate},
 				"Publication Status":              {fields.PublicationStatus},
+				"pmid":                            {fields.PMID},
 			}
 
 			sort.Strings(keyword.Fields)

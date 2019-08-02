@@ -52,4 +52,5 @@ var (
 	MajorFocusMeshHeading        = "major_mesh_headings"
 	PublicationDate              = "publication_date"
 	PublicationStatus            = "publication_status"
+	PMID                         = "pmid"
 )

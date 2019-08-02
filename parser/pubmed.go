@@ -127,6 +127,7 @@ var PubMedFieldMapping = map[string][]string{
 	fields.MajorFocusMeshHeading:        {fields.MajorFocusMeshHeading},
 	fields.PublicationDate:              {fields.PublicationDate},
 	fields.PublicationStatus:            {fields.PublicationStatus},
+	fields.PMID:                         {fields.PMID},
 	"default":                           {fields.AllFields},
 }
 

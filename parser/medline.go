@@ -5,7 +5,6 @@ import (
 	"github.com/hscells/transmute/fields"
 	"github.com/hscells/transmute/ir"
 	"regexp"
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -45,6 +44,7 @@ var MedlineFieldMapping = map[string][]string{
 	"ja":       {fields.Journal},
 	"jn":       {fields.Journal},
 	"jw":       {fields.Journal},
+	"pmid":     {fields.PMID},
 	"ti,ab":    {fields.TitleAbstract},
 	"ti,ab,sh": {fields.AllFields},
 	"default":  {fields.AllFields},
@@ -58,13 +58,17 @@ type MedlineTransformer struct{}
 
 // TransformFields maps a string of fields into a slice of mapped fields.
 func (p MedlineTransformer) TransformFields(fields string, mapping map[string][]string) []string {
-	parts := strings.Split(fields, ",")
-	var mappedFields []string
-	for _, field := range parts {
-		mappedFields = append(mappedFields, mapping[field]...)
+	//parts := strings.Split(fields, ",")
+	//var mappedFields []string
+	//for _, field := range parts {
+	//	mappedFields = append(mappedFields, mapping[field]...)
+	//}
+	//sort.Strings(mappedFields)
+	if field, ok := mapping[fields]; ok {
+		return field
+	} else {
+		return mapping["default"]
 	}
-	sort.Strings(mappedFields)
-	return mappedFields
 }
 
 func reverse(s string) string {
