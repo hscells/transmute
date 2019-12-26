@@ -256,20 +256,22 @@ func (t PubMedTransformer) ParseInfixKeywords(line string, mapping map[string][]
 	endTokens := ""
 
 	depth := 0
-	//insideQuote := false
+	insideQuote := false
 
 	for _, char := range line {
 		// Here we attempt to parse a keyword that is quoted.
-		//if char == '"' && !insideQuote {
-		//	insideQuote = true
-		//	continue
-		//} else if char == '"' && insideQuote {
-		//	insideQuote = false
-		//	continue
-		//} else if insideQuote {
-		//	currentToken += string(char)
-		//	continue
-		//}
+		if char == '"' && !insideQuote {
+			insideQuote = true
+			currentToken += `"`
+			continue
+		} else if char == '"' && insideQuote {
+			insideQuote = false
+			currentToken += `"`
+			continue
+		} else if insideQuote {
+			currentToken += string(char)
+			continue
+		}
 
 		if unicode.IsSpace(char) {
 			tok := strings.ToLower(currentToken)
